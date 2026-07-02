@@ -1,12 +1,23 @@
+import contextlib
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from langchain_core.messages import HumanMessage, AIMessage
+
 from entity import ChatRequest, ChatResponse
-from agents.tools import get_hotels, get_flights
 from agents.graph import graph
+from agents.mcp_client import mcp_manager
 
 conversation_history_messages = []
 
-app = FastAPI()
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Initializing MCP Client...")
+    await mcp_manager.initialize()
+    yield
+    print("Cleaning up MCP Client...")
+    await mcp_manager.cleanup()
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,60 +35,48 @@ async def hello():
 
 @app.get("/hotels")
 async def list_hotels():
-    return get_hotels.invoke({})
+    tool = mcp_manager.get_tool_by_name("get_hotels")
+    if tool:
+        return await tool.ainvoke({})
+    return []
 
 
 @app.get("/flights")
 async def list_flights():
-    return get_flights.invoke({})
+    tool = mcp_manager.get_tool_by_name("get_flights")
+    if tool:
+        return await tool.ainvoke({})
+    return []
 
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-
     recent_pairs = conversation_history_messages[-3:]
-    flattened_messages = []
+    
+    formatted_messages = []
     for user_msg, assistant_msg in recent_pairs:
-        flattened_messages.append(user_msg)
-        flattened_messages.append(assistant_msg)
-    flattened_messages.append(request.message)
+        formatted_messages.append(HumanMessage(content=user_msg))
+        formatted_messages.append(AIMessage(content=assistant_msg))
+    
+    formatted_messages.append(HumanMessage(content=request.message))
 
     initial_state = {
-        "messages": flattened_messages,
+        "messages": formatted_messages,
         "intent": "",
-        "sub_action": "",
-        "city": None,
-        "check_in": None,
-        "check_out": None,
-        "origin": None,
-        "destination": None,
-        "flight_date": None,
-        "hotel_id": None,
-        "guest_name": None,
-        "guest_email": None,
-        "room_type": None,
-        "flight_id": None,
-        "passenger_name": None,
-        "passenger_email": None,
-        "hotel_results": [],
-        "flight_results": [],
         "response_text": "",
     }
 
-    result = graph.invoke(initial_state)
-
+    result = await graph.ainvoke(initial_state)
     response_text = result.get("response_text", "Something went wrong. Please try again.")
-
     conversation_history_messages.append((request.message, response_text))
 
     return ChatResponse(
         response=response_text,
-        hotels=result.get("hotel_results", []) or None,
-        flights=result.get("flight_results", []) or None,
+        hotels=None,
+        flights=None,
     )
 
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)

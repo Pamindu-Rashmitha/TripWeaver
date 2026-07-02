@@ -1,29 +1,8 @@
-from typing import List, Optional, TypedDict
+from typing import TypedDict, Annotated, List
+from langgraph.graph.message import add_messages
+from langchain_core.messages import AnyMessage
 
 class GraphState(TypedDict):
-    messages: List[str]
-
+    messages: Annotated[list[AnyMessage], add_messages]
     intent: str
-    sub_action: str
-
-    city: Optional[str]
-    check_in: Optional[str]
-    check_out: Optional[str]
-
-    origin: Optional[str]
-    destination: Optional[str]
-    flight_date: Optional[str]
-
-    hotel_id: Optional[str]
-    guest_name: Optional[str]
-    guest_email: Optional[str]
-    room_type: Optional[str]
-
-    flight_id: Optional[str]
-    passenger_name: Optional[str]
-    passenger_email: Optional[str]
-
-    hotel_results: List[dict]
-    flight_results: List[dict]
-
     response_text: str
