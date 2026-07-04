@@ -2,6 +2,7 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
+import { BouncingDots } from "@/components/ui/bouncing-dots";
 
 interface ActivityIndicatorProps {
   activity: string;
@@ -19,13 +20,12 @@ export function ActivityIndicator({
         className
       )}
     >
-      {/* Animated dots */}
-      <div className="flex items-center gap-1">
-        <span className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce [animation-delay:0ms]" />
-        <span className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce [animation-delay:150ms]" />
-        <span className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce [animation-delay:300ms]" />
-      </div>
-      {/* Activity text with shimmer */}
+      {/* Animated bouncing dots */}
+      <BouncingDots
+        dots={3}
+        className="w-1 h-1 bg-indigo-400"
+      />
+      {/* Activity text */}
       <span className="text-sm text-muted-foreground dark:text-gray-400 italic">
         {activity}
       </span>

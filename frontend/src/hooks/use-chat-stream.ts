@@ -33,17 +33,8 @@ export function useChatStream() {
       timestamp: new Date(),
     };
 
-    // Create placeholder assistant message for streaming
     const assistantId = generateId();
-    const assistantMsg: ChatMessage = {
-      id: assistantId,
-      role: "assistant",
-      content: "",
-      timestamp: new Date(),
-      isStreaming: true,
-    };
-
-    setMessages((prev) => [...prev, userMsg, assistantMsg]);
+    setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
     setActivity("Analyzing your request…");
 
@@ -53,6 +44,8 @@ export function useChatStream() {
     }
     const controller = new AbortController();
     abortRef.current = controller;
+
+    let assistantAdded = false;
 
     try {
       const response = await fetch(ENDPOINTS.chatStream, {
@@ -75,6 +68,25 @@ export function useChatStream() {
       let accumulatedHotels: Hotel[] = [];
       let accumulatedFlights: Flight[] = [];
 
+      const ensureAssistantMessage = () => {
+        if (!assistantAdded) {
+          assistantAdded = true;
+          setActivity(null);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: assistantId,
+              role: "assistant" as const,
+              content: accumulatedContent,
+              hotels: accumulatedHotels.length ? accumulatedHotels : undefined,
+              flights: accumulatedFlights.length ? accumulatedFlights : undefined,
+              timestamp: new Date(),
+              isStreaming: true,
+            },
+          ]);
+        }
+      };
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -83,7 +95,7 @@ export function useChatStream() {
 
         // Parse SSE events from buffer
         const lines = buffer.split("\n");
-        buffer = lines.pop() || ""; // Keep incomplete last line
+        buffer = lines.pop() || "";
 
         let eventType = "";
         for (const line of lines) {
@@ -101,6 +113,7 @@ export function useChatStream() {
 
                 case "token":
                   accumulatedContent += data.token;
+                  ensureAssistantMessage();
                   setMessages((prev) =>
                     prev.map((msg) =>
                       msg.id === assistantId
@@ -115,6 +128,7 @@ export function useChatStream() {
                     ...accumulatedHotels,
                     ...(data.hotels || []),
                   ];
+                  ensureAssistantMessage();
                   setMessages((prev) =>
                     prev.map((msg) =>
                       msg.id === assistantId
@@ -129,6 +143,7 @@ export function useChatStream() {
                     ...accumulatedFlights,
                     ...(data.flights || []),
                   ];
+                  ensureAssistantMessage();
                   setMessages((prev) =>
                     prev.map((msg) =>
                       msg.id === assistantId
@@ -141,7 +156,7 @@ export function useChatStream() {
                 case "error":
                   setError(
                     data.message ||
-                      "Something went wrong. Please try again."
+                    "Something went wrong. Please try again."
                   );
                   break;
 
@@ -163,12 +178,13 @@ export function useChatStream() {
         }
       }
 
-      // Ensure streaming flag is cleared even if "done" event was missed
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantId ? { ...msg, isStreaming: false } : msg
-        )
-      );
+      if (assistantAdded) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantId ? { ...msg, isStreaming: false } : msg
+          )
+        );
+      }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
 
@@ -179,17 +195,17 @@ export function useChatStream() {
 
       setError(errorMessage);
 
-      // Remove the empty assistant placeholder on error
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.id === assistantId && !last.content) {
-          return prev.slice(0, -1);
-        }
-        // Mark as not streaming
-        return prev.map((msg) =>
-          msg.id === assistantId ? { ...msg, isStreaming: false } : msg
-        );
-      });
+      if (assistantAdded) {
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.id === assistantId && !last.content) {
+            return prev.slice(0, -1);
+          }
+          return prev.map((msg) =>
+            msg.id === assistantId ? { ...msg, isStreaming: false } : msg
+          );
+        });
+      }
     } finally {
       setIsLoading(false);
       setActivity(null);
@@ -201,7 +217,7 @@ export function useChatStream() {
     // Find the last user message and resend it
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
     if (lastUserMsg) {
-      // Remove the last assistant message (the failed one)
+      // Remove the last assistant message 
       setMessages((prev) => {
         const lastIdx = prev.length - 1;
         if (prev[lastIdx]?.role === "assistant") {

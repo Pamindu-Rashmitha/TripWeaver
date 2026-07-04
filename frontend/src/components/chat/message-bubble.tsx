@@ -41,7 +41,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           className={cn(
             "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
             isUser
-              ? "bg-indigo-500 text-white dark:bg-indigo-600 rounded-br-md"
+              ? "bg-gray-100 dark:bg-[#2a2d37] text-foreground dark:text-gray-200 rounded-bl-md"
               : "bg-gray-100 dark:bg-[#2a2d37] text-foreground dark:text-gray-200 rounded-bl-md"
           )}
         >
