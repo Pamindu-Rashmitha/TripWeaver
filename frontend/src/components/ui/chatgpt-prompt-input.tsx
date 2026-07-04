@@ -4,9 +4,7 @@
 import * as React from "react";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
-  Plus,
   SlidersHorizontal,
   ArrowUp,
   X,
@@ -15,7 +13,6 @@ import {
   MapPin,
   ClipboardList,
   Ticket,
-  Mic,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -69,48 +66,7 @@ const PopoverContent = React.forwardRef<
 ));
 PopoverContent.displayName = PopoverPrimitive.Content.displayName;
 
-const Dialog = DialogPrimitive.Root;
-const DialogPortal = DialogPrimitive.Portal;
-const DialogOverlay = React.forwardRef<
-  React.ComponentRef<typeof DialogPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Overlay
-    ref={ref}
-    className={cn(
-      "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className
-    )}
-    {...props}
-  />
-));
-DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
-const DialogContent = React.forwardRef<
-  React.ComponentRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-[90vw] md:max-w-[800px] translate-x-[-50%] translate-y-[-50%] gap-4 border-none bg-transparent p-0 shadow-none duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-        className
-      )}
-      {...props}
-    >
-      <div className="relative bg-card dark:bg-[#303030] rounded-[28px] overflow-hidden shadow-2xl p-1">
-        {children}
-        <DialogPrimitive.Close className="absolute right-3 top-3 z-10 rounded-full bg-background/50 dark:bg-[#303030] p-1 hover:bg-accent dark:hover:bg-[#515151] transition-all">
-          <X className="h-5 w-5 text-muted-foreground dark:text-gray-200 hover:text-foreground dark:hover:text-white" />
-          <span className="sr-only">Close</span>
-        </DialogPrimitive.Close>
-      </div>
-    </DialogPrimitive.Content>
-  </DialogPortal>
-));
-DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 // TripWeaver Travel Tools 
 const toolsList = [
@@ -161,12 +117,9 @@ export interface PromptBoxProps
 export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
   ({ className, onSendMessage, ...props }, ref) => {
     const internalTextareaRef = React.useRef<HTMLTextAreaElement>(null);
-    const fileInputRef = React.useRef<HTMLInputElement>(null);
     const [value, setValue] = React.useState("");
-    const [imagePreview, setImagePreview] = React.useState<string | null>(null);
     const [selectedTool, setSelectedTool] = React.useState<string | null>(null);
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
-    const [isImageDialogOpen, setIsImageDialogOpen] = React.useState(false);
 
     React.useImperativeHandle(ref, () => internalTextareaRef.current!, []);
 
@@ -186,12 +139,11 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
 
     const handleSend = () => {
       const trimmed = value.trim();
-      if (!trimmed && !imagePreview) return;
+      if (!trimmed) return;
       if (onSendMessage) {
         onSendMessage(trimmed);
       }
       setValue("");
-      setImagePreview(null);
       setSelectedTool(null);
     };
 
@@ -199,30 +151,6 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSend();
-      }
-    };
-
-    const handlePlusClick = () => {
-      fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (file && file.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setImagePreview(reader.result as string);
-        };
-        reader.readAsDataURL(file);
-      }
-      event.target.value = "";
-    };
-
-    const handleRemoveImage = (e: React.MouseEvent<HTMLButtonElement>) => {
-      e.stopPropagation();
-      setImagePreview(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
       }
     };
 
@@ -246,7 +174,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       }
     };
 
-    const hasValue = value.trim().length > 0 || imagePreview;
+    const hasValue = value.trim().length > 0;
     const activeTool = selectedTool
       ? toolsList.find((t) => t.id === selectedTool)
       : null;
@@ -259,45 +187,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
           className
         )}
       >
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          className="hidden"
-          accept="image/*"
-        />
 
-        {imagePreview && (
-          <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
-            <div className="relative mb-1 w-fit rounded-[1rem] px-1 pt-1">
-              <button
-                type="button"
-                className="transition-transform"
-                onClick={() => setIsImageDialogOpen(true)}
-              >
-                <img
-                  src={imagePreview}
-                  alt="Image preview"
-                  className="h-14.5 w-14.5 rounded-[1rem]"
-                />
-              </button>
-              <button
-                onClick={handleRemoveImage}
-                className="absolute right-2 top-2 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-white/50 dark:bg-[#303030] text-black dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151]"
-                aria-label="Remove image"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <DialogContent>
-              <img
-                src={imagePreview}
-                alt="Full size preview"
-                className="w-full max-h-[95vh] object-contain rounded-[24px]"
-              />
-            </DialogContent>
-          </Dialog>
-        )}
 
         <textarea
           ref={internalTextareaRef}
@@ -305,7 +195,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
           value={value}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder="Where would you like to go?"
+          placeholder="Let's plan your next adventure..."
           className="custom-scrollbar w-full resize-none border-0 bg-transparent p-3 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-gray-300 focus:ring-0 focus-visible:outline-none min-h-12"
           {...props}
         />
@@ -313,22 +203,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
         <div className="mt-0.5 p-1 pt-0">
           <TooltipProvider delayDuration={100}>
             <div className="flex items-center gap-2">
-              {/* Attach travel photo */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={handlePlusClick}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-foreground dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151] focus-visible:outline-none"
-                  >
-                    <Plus className="h-6 w-6" />
-                    <span className="sr-only">Attach travel photo</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="top" showArrow={true}>
-                  <p>Attach travel photo</p>
-                </TooltipContent>
-              </Tooltip>
+
 
               {/* Travel Tools popover */}
               <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
@@ -384,21 +259,6 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
 
               {/* Right-aligned buttons */}
               <div className="ml-auto flex items-center gap-2">
-                {/* Mic button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-foreground dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151] focus-visible:outline-none"
-                    >
-                      <Mic className="h-5 w-5" />
-                      <span className="sr-only">Record voice</span>
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" showArrow={true}>
-                    <p>Record voice</p>
-                  </TooltipContent>
-                </Tooltip>
 
                 {/* Send button */}
                 <Tooltip>
@@ -409,7 +269,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                       disabled={!hasValue}
                       className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none bg-black text-white hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/80 disabled:bg-black/40 dark:disabled:bg-[#515151]"
                     >
-                      <ArrowUp className="h-6 w-6" />
+                      <ArrowUp className="h-4 w-4" />
                       <span className="sr-only">Send message</span>
                     </button>
                   </TooltipTrigger>

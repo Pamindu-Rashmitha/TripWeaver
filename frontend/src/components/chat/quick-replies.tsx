@@ -17,7 +17,7 @@ const suggestions = [
   },
   {
     icon: Plane,
-    label: "Flights CMB → BKK",
+    label: "Flights CMB -> BKK",
     message: "Search flights from CMB to BKK",
     color: "text-cyan-500 dark:text-cyan-400",
     bg: "bg-cyan-50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800/50",
