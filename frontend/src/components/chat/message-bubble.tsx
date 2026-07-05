@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import { HotelCard } from "./hotel-card";
 import { FlightCard } from "./flight-card";
+import { ActivityCard } from "./activity-card";
+import { TransportCard } from "./transport-card";
+import { WeatherCard } from "./weather-card";
 import { CopyButton } from "./copy-button";
 
 interface MessageBubbleProps {
@@ -76,6 +79,33 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {message.flights.map((flight, idx) => (
               <FlightCard key={flight._id || idx} flight={flight} />
+            ))}
+          </div>
+        )}
+
+        {/* Activity cards */}
+        {message.activities && message.activities.length > 0 && (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {message.activities.map((activity, idx) => (
+              <ActivityCard key={`${activity.link}-${idx}`} activity={activity} />
+            ))}
+          </div>
+        )}
+
+        {/* Transport cards */}
+        {message.transport && message.transport.length > 0 && (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {message.transport.map((transport, idx) => (
+              <TransportCard key={`${transport.link}-${idx}`} transport={transport} />
+            ))}
+          </div>
+        )}
+
+        {/* Weather cards */}
+        {message.weather && message.weather.length > 0 && (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {message.weather.map((w, idx) => (
+              <WeatherCard key={`weather-${idx}`} weather={w} />
             ))}
           </div>
         )}

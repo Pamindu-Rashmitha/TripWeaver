@@ -52,6 +52,9 @@ NODE_ACTIVITY = {
     "router": "Analyzing your request…",
     "hotel_node": "Searching hotels…",
     "flight_node": "Searching flights…",
+    "activity_node": "Searching activities…",
+    "transport_node": "Finding transport options…",
+    "weather_node": "Checking weather…",
     "unknown_node": "Thinking…",
 }
 
@@ -77,6 +80,14 @@ async def list_flights():
     return []
 
 
+@app.get("/weather/{city}")
+async def get_weather(city: str):
+    tool = mcp_manager.get_tool_by_name("get_current_weather")
+    if tool:
+        return await tool.ainvoke({"city": city})
+    return {"error": "Weather tool not available"}
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     formatted_messages = _build_messages(request.message)
@@ -95,6 +106,9 @@ async def chat(request: ChatRequest):
         response=response_text,
         hotels=None,
         flights=None,
+        activities=None,
+        transport=None,
+        weather=None,
     )
 
 
@@ -102,7 +116,7 @@ async def chat(request: ChatRequest):
 async def chat_stream(request: ChatRequest):
     """
     SSE streaming endpoint.
-    Emits events: activity, token, hotels, flights, error, done.
+    Emits events: activity, token, hotels, flights, activities, transport, weather, error, done.
     """
     async def event_generator():
         formatted_messages = _build_messages(request.message)
@@ -137,7 +151,7 @@ async def chat_stream(request: ChatRequest):
                         full_response += token
                         yield _sse_event("token", {"token": token})
 
-                # Tool results (hotels/flights data)
+                # Tool results (hotels/flights/activities/transport/weather data)
                 elif kind == "on_tool_end":
                     tool_output = data.get("output", "")
                     try:
@@ -164,13 +178,29 @@ async def chat_stream(request: ChatRequest):
                         if not parsed:
                             continue
 
-                        # Detect hotels or flights data
+                        # Detect data type by inspecting fields
                         items = parsed if isinstance(parsed, list) else [parsed]
                         if items and isinstance(items[0], dict):
-                            if any(k in items[0] for k in ("pricePerNight", "roomTypes", "checkIn")):
+                            first = items[0]
+
+                            if any(k in first for k in ("pricePerNight", "roomTypes", "checkIn")):
                                 yield _sse_event("hotels", {"hotels": items})
-                            elif any(k in items[0] for k in ("flightNumber", "airline", "departureTime")):
+
+                            elif any(k in first for k in ("flightNumber", "airline", "departureTime")):
                                 yield _sse_event("flights", {"flights": items})
+
+                            elif any(k in first for k in ("temperature", "feelsLike")) and "condition" in first:
+                                yield _sse_event("weather", {"weather": items})
+
+                            elif "forecasts" in first:
+                                yield _sse_event("weather", {"weather": items})
+
+                            elif "link" in first and "category" in first:
+                                yield _sse_event("activities", {"activities": items})
+
+                            elif "link" in first and "transportType" in first:
+                                yield _sse_event("transport", {"transport": items})
+
                     except Exception as e:
                         print(f"Failed to parse tool output: {e}")
 

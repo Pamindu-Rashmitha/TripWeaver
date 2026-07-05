@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Plane, Hotel, MapPin, Compass } from "lucide-react";
+import { Plane, Hotel, MapPin, Compass, Bus, CloudSun, Ticket } from "lucide-react";
 
 interface QuickRepliesProps {
   onSelect: (message: string) => void;
@@ -16,25 +16,25 @@ const suggestions = [
     bg: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/50",
   },
   {
-    icon: Plane,
-    label: "Flights CMB -> BKK",
-    message: "Search flights from CMB to BKK",
-    color: "text-cyan-500 dark:text-cyan-400",
-    bg: "bg-cyan-50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800/50",
-  },
-  {
-    icon: MapPin,
-    label: "Show all hotels",
-    message: "Show me all available hotels",
+    icon: Ticket,
+    label: "Activities in Bangkok",
+    message: "What are the best activities and things to do in Bangkok?",
     color: "text-emerald-500 dark:text-emerald-400",
     bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/50",
   },
   {
-    icon: Compass,
-    label: "All flights",
-    message: "Show me all available flights",
-    color: "text-indigo-500 dark:text-indigo-400",
-    bg: "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800/50",
+    icon: Bus,
+    label: "Transport in Singapore",
+    message: "How do I get around Singapore? What local transport is available?",
+    color: "text-violet-500 dark:text-violet-400",
+    bg: "bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800/50",
+  },
+  {
+    icon: CloudSun,
+    label: "Weather in Tokyo",
+    message: "What's the current weather in Tokyo?",
+    color: "text-sky-500 dark:text-sky-400",
+    bg: "bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-800/50",
   },
 ];
 

@@ -18,8 +18,8 @@ export function EmptyState({ onSuggestionSelect }: EmptyStateProps) {
           Where would you like to go?
         </h1>
         <p className="text-sm text-muted-foreground dark:text-gray-400 max-w-md">
-          Search hotels, book flights, and plan your perfect trip with
-          TripWeaver AI.
+          Search hotels, book flights, discover activities, find local transport,
+          and check weather forecasts with TripWeaver AI.
         </p>
       </div>
 

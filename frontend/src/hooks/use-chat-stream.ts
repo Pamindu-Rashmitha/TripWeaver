@@ -5,6 +5,10 @@ import type {
   ChatMessage,
   Hotel,
   Flight,
+  Activity,
+  TransportOption,
+  WeatherInfo,
+  WeatherForecast,
 } from "@/lib/types";
 import { ENDPOINTS } from "@/lib/api";
 
@@ -67,6 +71,9 @@ export function useChatStream() {
       let accumulatedContent = "";
       let accumulatedHotels: Hotel[] = [];
       let accumulatedFlights: Flight[] = [];
+      let accumulatedActivities: Activity[] = [];
+      let accumulatedTransport: TransportOption[] = [];
+      let accumulatedWeather: (WeatherInfo | WeatherForecast)[] = [];
 
       const ensureAssistantMessage = () => {
         if (!assistantAdded) {
@@ -80,6 +87,9 @@ export function useChatStream() {
               content: accumulatedContent,
               hotels: accumulatedHotels.length ? accumulatedHotels : undefined,
               flights: accumulatedFlights.length ? accumulatedFlights : undefined,
+              activities: accumulatedActivities.length ? accumulatedActivities : undefined,
+              transport: accumulatedTransport.length ? accumulatedTransport : undefined,
+              weather: accumulatedWeather.length ? accumulatedWeather : undefined,
               timestamp: new Date(),
               isStreaming: true,
             },
@@ -148,6 +158,51 @@ export function useChatStream() {
                     prev.map((msg) =>
                       msg.id === assistantId
                         ? { ...msg, flights: accumulatedFlights }
+                        : msg
+                    )
+                  );
+                  break;
+
+                case "activities":
+                  accumulatedActivities = [
+                    ...accumulatedActivities,
+                    ...(data.activities || []),
+                  ];
+                  ensureAssistantMessage();
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantId
+                        ? { ...msg, activities: accumulatedActivities }
+                        : msg
+                    )
+                  );
+                  break;
+
+                case "transport":
+                  accumulatedTransport = [
+                    ...accumulatedTransport,
+                    ...(data.transport || []),
+                  ];
+                  ensureAssistantMessage();
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantId
+                        ? { ...msg, transport: accumulatedTransport }
+                        : msg
+                    )
+                  );
+                  break;
+
+                case "weather":
+                  accumulatedWeather = [
+                    ...accumulatedWeather,
+                    ...(data.weather || []),
+                  ];
+                  ensureAssistantMessage();
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantId
+                        ? { ...msg, weather: accumulatedWeather }
                         : msg
                     )
                   );

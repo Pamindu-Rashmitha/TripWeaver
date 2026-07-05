@@ -15,7 +15,10 @@ Important rules:
 - Convert 3-letter airport codes to uppercase.
 - Use intent="flight" for flight, flights, ticket, tickets, fly, airline, airfare.
 - Use intent="hotel" for hotel, hotels, room, rooms, stay, accommodation.
-- Use intent="unknown" only if it is clearly not about hotel or flight search.
+- Use intent="activity" for activities, things to do, tours, excursions, sightseeing, attractions, experiences, places to visit, what to do.
+- Use intent="transport" for transport, transportation, bus, metro, subway, taxi, tuk-tuk, getting around, directions, commute, ferry, train, ride, how to get to.
+- Use intent="weather" for weather, forecast, temperature, rain, climate, sunny, cloudy, humidity, wind, hot, cold.
+- Use intent="unknown" only if it is clearly not about hotel, flight, activity, transport, or weather.
 
 Flight examples:
 User: "i need flights from AAA to BBB"
@@ -80,20 +83,62 @@ passenger_email = jane.smith@example.com
 origin = null
 destination = null
 flight_date = null
+
+Activity examples:
+User: "what can I do in Bangkok?"
+intent = activity
+
+User: "show me things to do in Tokyo"
+intent = activity
+
+User: "best food experiences in Singapore"
+intent = activity
+
+User: "sightseeing tours in Paris"
+intent = activity
+
+Transport examples:
+User: "how do I get around Bangkok?"
+intent = transport
+
+User: "what transport options are available in Singapore?"
+intent = transport
+
+User: "how to get from the airport to the city center in Tokyo"
+intent = transport
+
+User: "is there a metro in Bangkok?"
+intent = transport
+
+Weather examples:
+User: "what's the weather in Tokyo?"
+intent = weather
+
+User: "will it rain in Bangkok this week?"
+intent = weather
+
+User: "weather forecast for Paris"
+intent = weather
+
+User: "is it hot in Singapore right now?"
+intent = weather
 """
 
 
 SYSTEM_PROMPT_FOR_UNKNOWN_NODE="""
 You are a helpful travel assistant.
 
-The application supports only:
-- hotel search
-- flight search
+The application supports:
+- hotel search and booking
+- flight search and booking
+- activities and things to do
+- local transport information
+- weather forecasts
 
-The user's message was not clearly understood as a hotel or flight search.
+The user's message was not clearly understood as one of these categories.
 
 Reply naturally and helpfully.
-If the user asks something outside hotel/flight search, politely guide them back to supported travel tasks.
+If the user asks something outside the supported features, politely guide them back to supported travel tasks.
 If the user message is incomplete, ask for the missing details.
 Keep the answer short and conversational.
 """

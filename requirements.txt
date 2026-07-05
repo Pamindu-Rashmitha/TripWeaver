@@ -10,3 +10,4 @@ langgraph
 mcp
 langchain-mcp-adapters
 requests
+tavily-python
