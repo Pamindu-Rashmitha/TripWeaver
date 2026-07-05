@@ -31,9 +31,19 @@ app.add_middleware(
 )
 
 
+def custom_json_encoder(obj):
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump()
+    elif hasattr(obj, "dict"):
+        return obj.dict()
+    try:
+        return str(obj)
+    except Exception:
+        return repr(obj)
+
 def _sse_event(event: str, data: dict) -> str:
     """Format a Server-Sent Event string."""
-    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+    return f"event: {event}\ndata: {json.dumps(data, default=custom_json_encoder)}\n\n"
 
 
 def _build_messages(message: str) -> list:
@@ -138,6 +148,26 @@ async def chat_stream(request: ChatRequest):
                 # Node start → activity update
                 if kind == "on_chain_start" and name in NODE_ACTIVITY:
                     yield _sse_event("activity", {"status": NODE_ACTIVITY[name]})
+                    
+                # Intent detection
+                elif kind == "on_chain_end" and name == "router":
+                    output = data.get("output", {})
+                    intent = output.get("intent", "")
+                    if intent:
+                        yield _sse_event("thinking", {
+                            "type": "intent",
+                            "intent": intent,
+                        })
+                        
+                # Tool execution start
+                elif kind == "on_tool_start":
+                    tool_name = name
+                    tool_input = data.get("input", {})
+                    yield _sse_event("thinking", {
+                        "type": "tool_call",
+                        "tool": tool_name,
+                        "input": tool_input,
+                    })
 
                 # LLM token streaming
                 elif kind == "on_chat_model_stream":

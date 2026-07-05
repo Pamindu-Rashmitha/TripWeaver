@@ -23,7 +23,7 @@ export function MessageList({ messages, activity, className }: MessageListProps)
   return (
     <div
       className={cn(
-        "flex-1 overflow-y-auto px-4 py-6 space-y-4 custom-scrollbar",
+        "flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-4 custom-scrollbar",
         className
       )}
     >

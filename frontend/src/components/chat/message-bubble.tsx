@@ -11,6 +11,7 @@ import { ActivityCard } from "./activity-card";
 import { TransportCard } from "./transport-card";
 import { WeatherCard } from "./weather-card";
 import { CopyButton } from "./copy-button";
+import { ThinkingPanel } from "./thinking-panel";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -27,11 +28,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
       )}
     >
       {/* Assistant avatar */}
-      {!isUser && (
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 shadow-sm">
-          <Compass className="h-4 w-4 text-white" />
+      {/*{!isUser && (
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gray-200 shadow-sm dark:bg-gray-400">
+          <Compass className="h-4 w-4 text-gray-800 dark:text-white" />
         </div>
-      )}
+      )}*/}
 
       <div
         className={cn(
@@ -39,6 +40,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           isUser ? "order-first" : ""
         )}
       >
+        {/* Thinking Panel */}
+        {!isUser && message.thinkingSteps && message.thinkingSteps.length > 0 && (
+          <ThinkingPanel steps={message.thinkingSteps} />
+        )}
+
         {/* Message bubble */}
         <div
           className={cn(
@@ -112,11 +118,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
       </div>
 
       {/* User avatar */}
-      {isUser && (
+      {/*{isUser && (
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gray-200 dark:bg-[#404040] shadow-sm">
           <User className="h-4 w-4 text-gray-600 dark:text-gray-300" />
         </div>
-      )}
+      )}*/}
     </div>
   );
 }

@@ -26,7 +26,7 @@ export function ChatContainer() {
       {/* Messages area */}
       <div className="flex-1 overflow-hidden">
         {hasMessages ? (
-          <div className="mx-auto h-full w-full max-w-4xl">
+          <div className="mx-auto h-full w-full max-w-3xl">
             <MessageList messages={messages} activity={activity} className="h-full" />
           </div>
         ) : (

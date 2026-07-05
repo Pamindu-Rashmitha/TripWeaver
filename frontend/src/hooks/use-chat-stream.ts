@@ -9,6 +9,7 @@ import type {
   TransportOption,
   WeatherInfo,
   WeatherForecast,
+  ThinkingStep,
 } from "@/lib/types";
 import { ENDPOINTS } from "@/lib/api";
 
@@ -74,6 +75,7 @@ export function useChatStream() {
       let accumulatedActivities: Activity[] = [];
       let accumulatedTransport: TransportOption[] = [];
       let accumulatedWeather: (WeatherInfo | WeatherForecast)[] = [];
+      let accumulatedThinkingSteps: ThinkingStep[] = [];
 
       const ensureAssistantMessage = () => {
         if (!assistantAdded) {
@@ -90,6 +92,7 @@ export function useChatStream() {
               activities: accumulatedActivities.length ? accumulatedActivities : undefined,
               transport: accumulatedTransport.length ? accumulatedTransport : undefined,
               weather: accumulatedWeather.length ? accumulatedWeather : undefined,
+              thinkingSteps: accumulatedThinkingSteps.length ? accumulatedThinkingSteps : undefined,
               timestamp: new Date(),
               isStreaming: true,
             },
@@ -119,6 +122,45 @@ export function useChatStream() {
               switch (eventType) {
                 case "activity":
                   setActivity(data.status);
+                  accumulatedThinkingSteps = [
+                    ...accumulatedThinkingSteps,
+                    {
+                      id: generateId(),
+                      type: "activity",
+                      status: data.status,
+                      timestamp: new Date(),
+                    },
+                  ];
+                  ensureAssistantMessage();
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantId
+                        ? { ...msg, thinkingSteps: accumulatedThinkingSteps }
+                        : msg
+                    )
+                  );
+                  break;
+
+                case "thinking":
+                  accumulatedThinkingSteps = [
+                    ...accumulatedThinkingSteps,
+                    {
+                      id: generateId(),
+                      type: data.type,
+                      tool: data.tool,
+                      input: data.input,
+                      intent: data.intent,
+                      timestamp: new Date(),
+                    },
+                  ];
+                  ensureAssistantMessage();
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantId
+                        ? { ...msg, thinkingSteps: accumulatedThinkingSteps }
+                        : msg
+                    )
+                  );
                   break;
 
                 case "token":
