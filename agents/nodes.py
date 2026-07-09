@@ -6,6 +6,7 @@ from typing import Literal
 from .llm import llm
 from .entity import GraphState
 from .mcp_client import mcp_manager
+from .prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_FOR_UNKNOWN_NODE
 
 class TravelIntent(BaseModel):
     intent: Literal["hotel", "flight", "activity", "transport", "weather", "unknown"] = Field(
@@ -17,7 +18,8 @@ travel_extractor = llm.with_structured_output(TravelIntent)
 
 async def router(state: GraphState) -> dict:
     try:
-        extracted = await travel_extractor.ainvoke(state["messages"])
+        messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
+        extracted = await travel_extractor.ainvoke(messages)
         intent = extracted.intent
     except Exception:
         intent = "unknown"
@@ -108,11 +110,7 @@ async def weather_node(state: GraphState) -> dict:
 
 
 async def unknown_node(state: GraphState) -> dict:
-    system_message = SystemMessage(
-        content="You are a general travel assistant. You can help with general questions. "
-                "For hotels and flights, guide the user to ask you to search or book them. "
-                "You can also help with activities, local transport, and weather information."
-    )
+    system_message = SystemMessage(content=SYSTEM_PROMPT_FOR_UNKNOWN_NODE)
     
     response = await llm.ainvoke([system_message] + state["messages"])
     return {"response_text": response.content}

@@ -4,13 +4,32 @@ import traceback
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from langchain_core.messages import HumanMessage, AIMessage
+import asyncio
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from entity import ChatRequest, ChatResponse
 from agents.graph import graph
 from agents.mcp_client import mcp_manager
+from agents.llm import llm
 
 conversation_history_messages = []
+global_summary = ""
+
+async def _summarize_oldest_message():
+    global global_summary, conversation_history_messages
+    if len(conversation_history_messages) > 3:
+        user_msg, ai_msg = conversation_history_messages.pop(0)
+        prompt = f"""Summarize the following new lines of conversation and combine them with the existing summary.
+        Keep it concise.
+
+        Existing summary: {global_summary if global_summary else 'None'}
+
+        New conversation:
+        User: {user_msg}
+        AI: {ai_msg}
+        """
+        response = await llm.ainvoke([HumanMessage(content=prompt)])
+        global_summary = response.content
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -48,11 +67,14 @@ def _sse_event(event: str, data: dict) -> str:
 
 def _build_messages(message: str) -> list:
     """Build the message list from conversation history + new message."""
-    recent_pairs = conversation_history_messages[-3:]
     formatted = []
-    for user_msg, assistant_msg in recent_pairs:
+    if global_summary:
+        formatted.append(SystemMessage(content=f"Summary of previous conversation:\n{global_summary}"))
+        
+    for user_msg, assistant_msg in conversation_history_messages:
         formatted.append(HumanMessage(content=user_msg))
         formatted.append(AIMessage(content=assistant_msg))
+        
     formatted.append(HumanMessage(content=message))
     return formatted
 
@@ -111,6 +133,8 @@ async def chat(request: ChatRequest):
     result = await graph.ainvoke(initial_state)
     response_text = result.get("response_text", "Something went wrong. Please try again.")
     conversation_history_messages.append((request.message, response_text))
+    if len(conversation_history_messages) > 3:
+        asyncio.create_task(_summarize_oldest_message())
 
     return ChatResponse(
         response=response_text,
@@ -237,7 +261,8 @@ async def chat_stream(request: ChatRequest):
             # Store in conversation history
             if full_response:
                 conversation_history_messages.append((request.message, full_response))
-
+                if len(conversation_history_messages) > 3:
+                    asyncio.create_task(_summarize_oldest_message())
         except Exception as exc:
             print(f"Stream error: {traceback.format_exc()}")
             yield _sse_event("error", {

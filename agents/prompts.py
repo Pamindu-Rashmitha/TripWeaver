@@ -137,28 +137,11 @@ The application supports:
 
 The user's message was not clearly understood as one of these categories.
 
+You are a general travel assistant. You can help with general questions.
 Reply naturally and helpfully.
 If the user asks something outside the supported features, politely guide them back to supported travel tasks.
 If the user message is incomplete, ask for the missing details.
 Keep the answer short and conversational.
+For hotels and flights, guide the user to ask you to search or book them.
+
 """
-
-def get_system_prompt_with_history(conversation_history: str) -> str:
-    system_prompt = SYSTEM_PROMPT
-    if conversation_history:
-        system_prompt += f"""
-
-    CONVERSATION HISTORY:
-    {conversation_history}
-    """
-    return system_prompt
-
-def get_system_prompt_for_unknown_node(conversation_history: str) -> str:
-    system_prompt = SYSTEM_PROMPT_FOR_UNKNOWN_NODE
-    if conversation_history:
-        system_prompt += f"""
-
-    CONVERSATION HISTORY:
-    {conversation_history}
-    """
-    return system_prompt
