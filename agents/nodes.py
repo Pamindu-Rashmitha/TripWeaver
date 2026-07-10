@@ -1,30 +1,61 @@
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from pydantic import BaseModel, Field
-from typing import Literal
+from typing import Literal, List
+from langgraph.types import Send
 
 from .llm import llm
 from .entity import GraphState
 from .mcp_client import mcp_manager
-from .prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_FOR_UNKNOWN_NODE
+from .prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_FOR_UNKNOWN_NODE, FINALIZER_PROMPT
 
-class TravelIntent(BaseModel):
-    intent: Literal["hotel", "flight", "activity", "transport", "weather", "unknown"] = Field(
-        default="unknown",
-        description="Main user intent: hotel, flight, activity, transport, weather, or unknown."
+class TravelIntents(BaseModel):
+    intents: List[Literal["hotel", "flight", "activity", "transport", "weather", "unknown"]] = Field(
+        default=["unknown"],
+        description="All detected travel intents from the user message."
     )
 
-travel_extractor = llm.with_structured_output(TravelIntent)
+travel_extractor = llm.with_structured_output(TravelIntents)
+
+INTENT_TO_NODE = {
+    "hotel": "hotel_node",
+    "flight": "flight_node",
+    "activity": "activity_node",
+    "transport": "transport_node",
+    "weather": "weather_node",
+}
 
 async def router(state: GraphState) -> dict:
     try:
         messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
         extracted = await travel_extractor.ainvoke(messages)
-        intent = extracted.intent
+        intents = extracted.intents or ["unknown"]
     except Exception:
-        intent = "unknown"
+        intents = ["unknown"]
 
-    return {"intent": intent}
+    # Normalise: unknown cannot coexist with other intents
+    if "unknown" in intents and len(intents) > 1:
+        intents = [i for i in intents if i != "unknown"]
+
+    return {
+        "intents": intents,
+        "intent": intents[0] if intents else "unknown",
+        "agent_responses": []
+    }
+
+
+def route_to_agents(state: GraphState):
+    intents = state.get("intents", ["unknown"])
+
+    if intents == ["unknown"]:
+        return "unknown_node"
+
+    # Spreadout to all relevant agent nodes in parallel via Send
+    return [
+        Send(INTENT_TO_NODE[intent], state)
+        for intent in intents
+        if intent in INTENT_TO_NODE
+    ]
 
 
 async def hotel_node(state: GraphState) -> dict:
@@ -39,7 +70,7 @@ async def hotel_node(state: GraphState) -> dict:
     agent = create_react_agent(llm, tools=tools, prompt=system_message)
     response = await agent.ainvoke({"messages": state["messages"]})
     
-    return {"response_text": response["messages"][-1].content}
+    return {"agent_responses": [response["messages"][-1].content]}
 
 
 async def flight_node(state: GraphState) -> dict:
@@ -54,7 +85,7 @@ async def flight_node(state: GraphState) -> dict:
     agent = create_react_agent(llm, tools=tools, prompt=system_message)
     response = await agent.ainvoke({"messages": state["messages"]})
     
-    return {"response_text": response["messages"][-1].content}
+    return {"agent_responses": [response["messages"][-1].content]}
 
 
 async def activity_node(state: GraphState) -> dict:
@@ -71,7 +102,7 @@ async def activity_node(state: GraphState) -> dict:
     agent = create_react_agent(llm, tools=tools, prompt=system_message)
     response = await agent.ainvoke({"messages": state["messages"]})
 
-    return {"response_text": response["messages"][-1].content}
+    return {"agent_responses": [response["messages"][-1].content]}
 
 
 async def transport_node(state: GraphState) -> dict:
@@ -88,7 +119,7 @@ async def transport_node(state: GraphState) -> dict:
     agent = create_react_agent(llm, tools=tools, prompt=system_message)
     response = await agent.ainvoke({"messages": state["messages"]})
 
-    return {"response_text": response["messages"][-1].content}
+    return {"agent_responses": [response["messages"][-1].content]}
 
 
 async def weather_node(state: GraphState) -> dict:
@@ -106,26 +137,28 @@ async def weather_node(state: GraphState) -> dict:
     agent = create_react_agent(llm, tools=tools, prompt=system_message)
     response = await agent.ainvoke({"messages": state["messages"]})
 
-    return {"response_text": response["messages"][-1].content}
+    return {"agent_responses": [response["messages"][-1].content]}
 
 
 async def unknown_node(state: GraphState) -> dict:
     system_message = SystemMessage(content=SYSTEM_PROMPT_FOR_UNKNOWN_NODE)
     
     response = await llm.ainvoke([system_message] + state["messages"])
-    return {"response_text": response.content}
+    return {"response_text": response.content, "finalized": True}
 
 
-def route_after_extraction(state: GraphState) -> str:
-    intent = state.get("intent", "unknown")
-    if intent == "hotel":
-        return "hotel"
-    if intent == "flight":
-        return "flight"
-    if intent == "activity":
-        return "activity"
-    if intent == "transport":
-        return "transport"
-    if intent == "weather":
-        return "weather"
-    return "unknown"
+async def finalizer(state: GraphState) -> dict:
+    drafts = state.get("agent_responses", [])
+
+    if not drafts:
+        return {"response_text": "I'm sorry, something went wrong. Please try again.", "finalized": True}
+
+    combined = "\n\n---\n\n".join(
+        f"[Draft {i+1}]\n{d}" for i, d in enumerate(drafts)
+    )
+    messages = [
+        SystemMessage(content=FINALIZER_PROMPT),
+        HumanMessage(content=f"Draft answers:\n\n{combined}"),
+    ]
+    response = await llm.ainvoke(messages)
+    return {"response_text": response.content, "finalized": True}

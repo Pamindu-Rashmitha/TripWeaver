@@ -54,20 +54,6 @@ export function ThinkingPanel({ steps, className }: ThinkingPanelProps) {
                   </>
                 )}
               </div>
-
-              {/* Tool input payload if available */}
-              {step.type === "tool_call" && step.input && Object.keys(step.input).length > 0 && (
-                <div className="ml-5 mt-1 font-mono text-[10px] text-muted-foreground bg-muted/40 rounded p-1.5 overflow-x-auto">
-                  {Object.entries(step.input).map(([key, value]) => (
-                    <div key={key} className="flex gap-1.5">
-                      <span className="text-foreground/70">{key}:</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 break-words">
-                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           ))}
         </div>

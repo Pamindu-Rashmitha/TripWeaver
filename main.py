@@ -88,6 +88,7 @@ NODE_ACTIVITY = {
     "transport_node": "Finding transport options…",
     "weather_node": "Checking weather…",
     "unknown_node": "Thinking…",
+    "finalizer": "Finalizing answer…",
 }
 
 
@@ -127,7 +128,10 @@ async def chat(request: ChatRequest):
     initial_state = {
         "messages": formatted_messages,
         "intent": "",
+        "intents": [],
+        "agent_responses": [],
         "response_text": "",
+        "finalized": False,
     }
 
     result = await graph.ainvoke(initial_state)
@@ -157,7 +161,10 @@ async def chat_stream(request: ChatRequest):
         initial_state = {
             "messages": formatted_messages,
             "intent": "",
+            "intents": [],
+            "agent_responses": [],
             "response_text": "",
+            "finalized": False,
         }
 
         full_response = ""
@@ -186,17 +193,17 @@ async def chat_stream(request: ChatRequest):
                 # Tool execution start
                 elif kind == "on_tool_start":
                     tool_name = name
-                    tool_input = data.get("input", {})
                     yield _sse_event("thinking", {
                         "type": "tool_call",
                         "tool": tool_name,
-                        "input": tool_input,
                     })
 
                 # LLM token streaming
                 elif kind == "on_chat_model_stream":
                     metadata = event.get("metadata", {})
-                    if metadata.get("langgraph_node") == "router":
+                    current_node = metadata.get("langgraph_node", "")
+                    # Only stream tokens from finalizer node or unknown_node
+                    if current_node not in ("finalizer", "unknown_node"):
                         continue
                         
                     chunk = data.get("chunk")
