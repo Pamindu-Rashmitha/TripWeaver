@@ -5,12 +5,14 @@ from mcp.server.fastmcp import FastMCP
 from tavily import TavilyClient
 from dotenv import load_dotenv
 from pathlib import Path
+from mcp_cache import McpCache
 
 # Load .env from project root
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=BASE_DIR / ".env", override=True)
 
 mcp = FastMCP("TripWeaver-Activities")
+cache = McpCache("activity")
 
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
 
@@ -48,6 +50,11 @@ def search_activities(city: str, category: str = None) -> List[dict]:
         city: The city to search activities for. Example: Bangkok, Paris, Tokyo.
         category: Optional category filter. Examples: adventure, cultural, food, nightlife, sightseeing, tours, shopping.
     """
+    cache_key = cache.make_key("search_activities", city=city, category=category)
+    cached = cache.get_cached(cache_key)
+    if cached is not None:
+        return cached
+
     query = f"best things to do and activities in {city}"
     if category:
         query = f"best {category} activities and things to do in {city}"
@@ -60,6 +67,7 @@ def search_activities(city: str, category: str = None) -> List[dict]:
             r["city"] = city
             r["category"] = category or "general"
 
+    cache.set_cached(cache_key, results, 3600)  # 1 hour
     return results
 
 
@@ -71,7 +79,13 @@ def get_activity_details(query: str) -> List[dict]:
     Args:
         query: A specific activity or attraction to search for. Example: 'Grand Palace Bangkok tickets and hours'.
     """
+    cache_key = cache.make_key("get_activity_details", query=query)
+    cached = cache.get_cached(cache_key)
+    if cached is not None:
+        return cached
+
     results = _search_web(query, max_results=5)
+    cache.set_cached(cache_key, results, 3600)  # 1 hour
     return results
 
 

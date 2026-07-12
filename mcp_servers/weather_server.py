@@ -6,12 +6,14 @@ from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime, timezone
+from mcp_cache import McpCache
 
 # Load .env from project root
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=BASE_DIR / ".env", override=True)
 
 mcp = FastMCP("TripWeaver-Weather")
+cache = McpCache("weather")
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
 OPENWEATHER_BASE = "https://api.openweathermap.org/data/2.5"
@@ -45,6 +47,11 @@ def get_current_weather(city: str) -> dict:
     Args:
         city: The city name to get weather for. Example: Bangkok, Tokyo, Paris, London.
     """
+    cache_key = f"tw:mcp:weather:current:{city.strip().lower()}"
+    cached = cache.get_cached(cache_key)
+    if cached is not None:
+        return cached
+
     data = _fetch_weather("weather", {"q": city})
 
     if "error" in data:
@@ -55,7 +62,7 @@ def get_current_weather(city: str) -> dict:
         main = data.get("main", {})
         wind = data.get("wind", {})
 
-        return {
+        result = {
             "city": data.get("name", city),
             "country": data.get("sys", {}).get("country", ""),
             "temperature": round(main.get("temp", 0), 1),
@@ -72,6 +79,8 @@ def get_current_weather(city: str) -> dict:
             "clouds": data.get("clouds", {}).get("all", 0),
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+        cache.set_cached(cache_key, result, 600)  # 10 minutes
+        return result
     except Exception as e:
         return {"error": f"Failed to parse weather data: {str(e)}"}
 
@@ -86,6 +95,10 @@ def get_weather_forecast(city: str, days: int = 5) -> dict:
         days: Number of days to forecast (1-5). Default is 5.
     """
     days = max(1, min(days, 5))
+    cache_key = f"tw:mcp:weather:forecast:{city.strip().lower()}:{days}"
+    cached = cache.get_cached(cache_key)
+    if cached is not None:
+        return cached
 
     data = _fetch_weather("forecast", {"q": city, "cnt": days * 8})  
 
@@ -155,11 +168,13 @@ def get_weather_forecast(city: str, days: int = 5) -> dict:
         city_name = data.get("city", {}).get("name", city)
         country = data.get("city", {}).get("country", "")
 
-        return {
+        result = {
             "city": city_name,
             "country": country,
             "forecasts": daily_forecasts,
         }
+        cache.set_cached(cache_key, result, 1800)  # 30 minutes
+        return result
     except Exception as e:
         return {"error": f"Failed to parse forecast data: {str(e)}"}
 

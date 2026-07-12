@@ -26,7 +26,6 @@ export function ThinkingPanel({ steps, className }: ThinkingPanelProps) {
         ) : (
           <ChevronRight className="h-3.5 w-3.5" />
         )}
-        <Brain className="h-3.5 w-3.5 text-indigo-400" />
         <span>Thought for {steps.length} steps</span>
       </button>
 
@@ -37,19 +36,16 @@ export function ThinkingPanel({ steps, className }: ThinkingPanelProps) {
               <div className="flex items-center gap-2 text-muted-foreground">
                 {step.type === "intent" && (
                   <>
-                    <Target className="h-3 w-3 text-emerald-500" />
                     <span>Detected intent: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{step.intent}</span></span>
                   </>
                 )}
                 {step.type === "activity" && (
                   <>
-                    <Activity className="h-3 w-3 text-amber-500" />
                     <span>{step.status}</span>
                   </>
                 )}
                 {step.type === "tool_call" && (
                   <>
-                    <Wrench className="h-3 w-3 text-blue-500" />
                     <span>Called <span className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded text-blue-600 dark:text-blue-400">{step.tool}</span></span>
                   </>
                 )}

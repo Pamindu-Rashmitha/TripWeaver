@@ -51,7 +51,7 @@ export function BouncingDots({
           .map((_, index) => (
             <motion.div
               key={index}
-              className={cn("w-3 h-3 bg-foreground rounded-full", className)}
+              className={cn("w-1 h-2 bg-foreground rounded-full", className)}
               animate={{ y: [0, -20, 0] }}
               transition={{
                 duration: 0.6,

@@ -41,6 +41,7 @@ export function ChatContainer() {
               activity={activity}
               className="h-full"
               onBookingAction={sendMessage}
+              onRetry={retry}
             />
           </div>
         ) : (

@@ -1,8 +1,10 @@
 from typing import Any, List, Optional
 import requests
 from mcp.server.fastmcp import FastMCP
+from mcp_cache import McpCache
 
 mcp = FastMCP("TripWeaver-Flights")
+cache = McpCache("flight")
 
 FLIGHT_API_BASE = "https://standing-fish-574.convex.site/flights"
 
@@ -19,12 +21,18 @@ def get_flights() -> List[dict]:
     Get a list of all available flights.
     Use this when the user asks to show/list all flights.
     """
+    cache_key = "tw:mcp:flight:list"
+    cached = cache.get_cached(cache_key)
+    if cached is not None:
+        return cached
+
     data = _fetch_json(FLIGHT_API_BASE)
     if isinstance(data, dict):
         flights = data.get("flights", [])
         for f in flights:
             if "_id" in f:
                 f["id"] = f["_id"]
+        cache.set_cached(cache_key, flights, 600)  # 10 minutes
         return flights
     return []
 
@@ -52,6 +60,16 @@ def search_flights(
     else:
         normalized_destination = destination
 
+    cache_key = cache.make_key(
+        "search_flights",
+        origin=normalized_origin,
+        destination=normalized_destination,
+        date=date
+    )
+    cached = cache.get_cached(cache_key)
+    if cached is not None:
+        return cached
+
     params = {
         "origin": normalized_origin,
         "destination": normalized_destination,
@@ -64,6 +82,7 @@ def search_flights(
         for f in flights:
             if "_id" in f:
                 f["id"] = f["_id"]
+        cache.set_cached(cache_key, flights, 300)  # 5 minutes
         return flights
     return []
 
@@ -82,6 +101,10 @@ def book_flight(flight_id: str, passenger_name: str, passenger_email: str) -> di
         "passengerEmail": passenger_email,
     }
     response = requests.post(f"{FLIGHT_API_BASE}/book", json=payload)
+    
+    # Invalidate flights cache on new booking
+    cache.invalidate("tw:mcp:flight:*")
+    
     return response.json()
 
 if __name__ == "__main__":

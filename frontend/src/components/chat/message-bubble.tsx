@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { User, Compass } from "lucide-react";
+import { User, Compass, RefreshCw } from "lucide-react";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -16,10 +16,19 @@ import { ThinkingPanel } from "./thinking-panel";
 interface MessageBubbleProps {
   message: ChatMessage;
   onBookingAction?: (message: string) => void;
+  onRetry?: () => void;
 }
 
-export function MessageBubble({ message, onBookingAction }: MessageBubbleProps) {
+export function MessageBubble({ message, onBookingAction, onRetry }: MessageBubbleProps) {
   const isUser = message.role === "user";
+  const [isRetrying, setIsRetrying] = React.useState(false);
+
+  const handleRetry = () => {
+    if (!onRetry) return;
+    setIsRetrying(true);
+    onRetry();
+    setTimeout(() => setIsRetrying(false), 1500);
+  };
 
   return (
     <div
@@ -67,10 +76,23 @@ export function MessageBubble({ message, onBookingAction }: MessageBubbleProps) 
           </div>
         )}
 
-        {/* Copy button for assistant messages */}
+        {/* Copy & Retry buttons for assistant messages */}
         {!isUser && message.content && !message.isStreaming && (
           <div className="mt-1 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 hover:opacity-100 [.group:hover_&]:opacity-100">
             <CopyButton text={message.content} />
+            {onRetry && (
+              <button
+                onClick={handleRetry}
+                disabled={isRetrying}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-md p-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent dark:hover:bg-[#404040] transition-all",
+                  isRetrying && "pointer-events-none"
+                )}
+                title="Regenerate response"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", isRetrying && "animate-spin")} />
+              </button>
+            )}
           </div>
         )}
 

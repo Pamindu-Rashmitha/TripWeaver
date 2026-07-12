@@ -17,8 +17,7 @@ from auth import get_required_user, UserInfo
 
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
-conversation_histories: dict[str, list] = {}
-conversation_summaries: dict[str, str] = {}
+from cache import redis_cache
 
 def _get_user_key(user: UserInfo) -> str:
     """Return a stable key for per-user history."""
@@ -26,10 +25,11 @@ def _get_user_key(user: UserInfo) -> str:
 
 
 async def _summarize_oldest_message(user_key: str):
-    history = conversation_histories.get(user_key, [])
+    history = await redis_cache.get_conversation_history(user_key)
     if len(history) > 3:
         user_msg, ai_msg = history.pop(0)
-        existing = conversation_summaries.get(user_key, "")
+        await redis_cache.set_conversation_history(user_key, history)
+        existing = await redis_cache.get_conversation_summary(user_key)
         prompt = f"""Summarize the following new lines of conversation and combine them with the existing summary.
         Keep it concise.
 
@@ -40,13 +40,15 @@ async def _summarize_oldest_message(user_key: str):
         AI: {ai_msg}
         """
         response = await llm.ainvoke([HumanMessage(content=prompt)])
-        conversation_summaries[user_key] = response.content
+        await redis_cache.set_conversation_summary(user_key, response.content)
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Initializing MCP Client...")
     await mcp_manager.initialize()
+    await redis_cache.connect()
     yield
+    await redis_cache.disconnect()
     print("Cleaning up MCP Client...")
     await mcp_manager.cleanup()
 
@@ -76,14 +78,14 @@ def _sse_event(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, default=custom_json_encoder)}\n\n"
 
 
-def _build_messages(message: str, user_key: str) -> list:
+async def _build_messages(message: str, user_key: str) -> list:
     """Build the message list from per-user conversation history + new message."""
     formatted = []
-    summary = conversation_summaries.get(user_key, "")
+    summary = await redis_cache.get_conversation_summary(user_key)
     if summary:
         formatted.append(SystemMessage(content=f"Summary of previous conversation:\n{summary}"))
 
-    history = conversation_histories.get(user_key, [])
+    history = await redis_cache.get_conversation_history(user_key)
     for user_msg, assistant_msg in history:
         formatted.append(HumanMessage(content=user_msg))
         formatted.append(AIMessage(content=assistant_msg))
@@ -112,32 +114,50 @@ async def hello():
 
 @app.get("/hotels")
 async def list_hotels():
+    cache_key = "tw:api:hotels:list"
+    cached = await redis_cache.get_cached_response(cache_key)
+    if cached is not None:
+        return cached
     tool = mcp_manager.get_tool_by_name("get_hotels")
     if tool:
-        return await tool.ainvoke({})
+        res = await tool.ainvoke({})
+        await redis_cache.set_cached_response(cache_key, res, 600)
+        return res
     return []
 
 
 @app.get("/flights")
 async def list_flights():
+    cache_key = "tw:api:flights:list"
+    cached = await redis_cache.get_cached_response(cache_key)
+    if cached is not None:
+        return cached
     tool = mcp_manager.get_tool_by_name("get_flights")
     if tool:
-        return await tool.ainvoke({})
+        res = await tool.ainvoke({})
+        await redis_cache.set_cached_response(cache_key, res, 600)
+        return res
     return []
 
 
 @app.get("/weather/{city}")
 async def get_weather(city: str):
+    cache_key = f"tw:api:weather:{city}"
+    cached = await redis_cache.get_cached_response(cache_key)
+    if cached is not None:
+        return cached
     tool = mcp_manager.get_tool_by_name("get_current_weather")
     if tool:
-        return await tool.ainvoke({"city": city})
+        res = await tool.ainvoke({"city": city})
+        await redis_cache.set_cached_response(cache_key, res, 600)
+        return res
     return {"error": "Weather tool not available"}
 
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, user: UserInfo = Depends(get_required_user)):
     user_key = _get_user_key(user)
-    formatted_messages = _build_messages(request.message, user_key)
+    formatted_messages = await _build_messages(request.message, user_key)
 
     # Prefer JWT-verified email/name
     initial_state = {
@@ -155,8 +175,10 @@ async def chat(request: ChatRequest, user: UserInfo = Depends(get_required_user)
 
     result = await graph.ainvoke(initial_state)
     response_text = result.get("response_text", "Something went wrong. Please try again.")
-    conversation_histories.setdefault(user_key, []).append((request.message, response_text))
-    if len(conversation_histories[user_key]) > 3:
+    history = await redis_cache.get_conversation_history(user_key)
+    history.append((request.message, response_text))
+    await redis_cache.set_conversation_history(user_key, history)
+    if len(history) > 3:
         asyncio.create_task(_summarize_oldest_message(user_key))
 
     return ChatResponse(
@@ -182,7 +204,7 @@ async def chat_stream(request: ChatRequest, user: UserInfo = Depends(get_require
         resolved_name = user.name or request.user_name or ""
         print(f"DEBUG USER in chat_stream: JWT Info={user}, Resolved Name='{resolved_name}', Resolved Email='{resolved_email}'")
         
-        formatted_messages = _build_messages(request.message, user_key)
+        formatted_messages = await _build_messages(request.message, user_key)
         initial_state = {
             "messages": formatted_messages,
             "intent": "",
@@ -296,8 +318,10 @@ async def chat_stream(request: ChatRequest, user: UserInfo = Depends(get_require
 
             # Store in per-user conversation history
             if full_response:
-                conversation_histories.setdefault(user_key, []).append((request.message, full_response))
-                if len(conversation_histories[user_key]) > 3:
+                history = await redis_cache.get_conversation_history(user_key)
+                history.append((request.message, full_response))
+                await redis_cache.set_conversation_history(user_key, history)
+                if len(history) > 3:
                     asyncio.create_task(_summarize_oldest_message(user_key))
         except Exception as exc:
             print(f"Stream error: {traceback.format_exc()}")

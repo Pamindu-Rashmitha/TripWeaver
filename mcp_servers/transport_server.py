@@ -5,12 +5,14 @@ from mcp.server.fastmcp import FastMCP
 from tavily import TavilyClient
 from dotenv import load_dotenv
 from pathlib import Path
+from mcp_cache import McpCache
 
 # Load .env from project root
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=BASE_DIR / ".env", override=True)
 
 mcp = FastMCP("TripWeaver-Transport")
+cache = McpCache("transport")
 
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
 
@@ -48,6 +50,11 @@ def search_transport(city: str, transport_type: str = None) -> List[dict]:
         city: The city to search transport for. Example: Bangkok, Singapore, Tokyo.
         transport_type: Optional transport type filter. Examples: metro, bus, taxi, tuk-tuk, ferry, train, ride-hailing.
     """
+    cache_key = cache.make_key("search_transport", city=city, transport_type=transport_type)
+    cached = cache.get_cached(cache_key)
+    if cached is not None:
+        return cached
+
     if transport_type:
         query = f"{transport_type} transport in {city} how to use guide"
     else:
@@ -60,6 +67,7 @@ def search_transport(city: str, transport_type: str = None) -> List[dict]:
             r["city"] = city
             r["transportType"] = transport_type or "general"
 
+    cache.set_cached(cache_key, results, 3600)  # 1 hour
     return results
 
 
@@ -73,6 +81,11 @@ def get_transport_directions(city: str, from_location: str, to_location: str) ->
         from_location: Starting point. Example: Suvarnabhumi Airport, Marina Bay Sands.
         to_location: Destination. Example: Khao San Road, Sentosa Island.
     """
+    cache_key = cache.make_key("get_transport_directions", city=city, from_location=from_location, to_location=to_location)
+    cached = cache.get_cached(cache_key)
+    if cached is not None:
+        return cached
+
     query = f"how to get from {from_location} to {to_location} in {city} best transport options"
     results = _search_web(query, max_results=6)
 
@@ -82,6 +95,7 @@ def get_transport_directions(city: str, from_location: str, to_location: str) ->
             r["from"] = from_location
             r["to"] = to_location
 
+    cache.set_cached(cache_key, results, 3600)  # 1 hour
     return results
 
 

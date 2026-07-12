@@ -11,15 +11,22 @@ interface MessageListProps {
   activity?: string | null;
   className?: string;
   onBookingAction?: (message: string) => void;
+  onRetry?: () => void;
 }
 
-export function MessageList({ messages, activity, className, onBookingAction }: MessageListProps) {
+export function MessageList({ messages, activity, className, onBookingAction, onRetry }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive or content streams in
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, activity]);
+
+  // Find the index of the last assistant message to show retry only on it
+  const lastAssistantIdx = messages.reduce(
+    (acc, msg, idx) => (msg.role === "assistant" ? idx : acc),
+    -1
+  );
 
   return (
     <div
@@ -28,11 +35,12 @@ export function MessageList({ messages, activity, className, onBookingAction }: 
         className
       )}
     >
-      {messages.map((msg) => (
+      {messages.map((msg, idx) => (
         <div key={msg.id} className="group">
           <MessageBubble
             message={msg}
             onBookingAction={onBookingAction}
+            onRetry={idx === lastAssistantIdx ? onRetry : undefined}
           />
         </div>
       ))}
