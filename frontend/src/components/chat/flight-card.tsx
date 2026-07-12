@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 interface FlightCardProps {
   flight: Flight;
   className?: string;
+  onBook?: (message: string) => void;
 }
 
 function formatTime(dateStr: string): string {
@@ -35,7 +36,7 @@ function formatDate(dateStr: string): string {
   }
 }
 
-export function FlightCard({ flight, className }: FlightCardProps) {
+export function FlightCard({ flight, className, onBook }: FlightCardProps) {
   return (
     <div
       className={cn(
@@ -119,6 +120,18 @@ export function FlightCard({ flight, className }: FlightCardProps) {
           </span>
         )}
       </div>
+
+      {/* Book button */}
+      {onBook && (
+        <div className="mt-3 pt-3 border-t border-cyan-200/30 dark:border-cyan-800/20">
+          <button
+            onClick={() => onBook(`Book flight ${flight.flightNumber} from ${flight.origin} to ${flight.destination} for me`)}
+            className="w-full rounded-xl bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-500 text-white text-xs font-semibold py-2 px-3 transition-colors duration-200"
+          >
+            Book this flight
+          </button>
+        </div>
+      )}
 
       {/* Subtle gradient overlay on hover */}
       <div className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />

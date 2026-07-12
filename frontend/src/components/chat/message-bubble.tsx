@@ -15,9 +15,10 @@ import { ThinkingPanel } from "./thinking-panel";
 
 interface MessageBubbleProps {
   message: ChatMessage;
+  onBookingAction?: (message: string) => void;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, onBookingAction }: MessageBubbleProps) {
   const isUser = message.role === "user";
 
   return (
@@ -46,23 +47,25 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         )}
 
         {/* Message bubble */}
-        <div
-          className={cn(
-            "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
-            isUser
-              ? "bg-gray-100 dark:bg-[#2a2d37] text-foreground dark:text-gray-200 rounded-bl-md"
-              : "bg-gray-100 dark:bg-[#2a2d37] text-foreground dark:text-gray-200 rounded-bl-md"
-          )}
-        >
-          {/* Render content with basic line break support and markdown */}
-          <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0">
-            <ReactMarkdown>{message.content}</ReactMarkdown>
-            {/* Streaming cursor */}
-            {message.isStreaming && (
-              <span className="inline-block w-1.5 h-4 ml-0.5 bg-current animate-pulse rounded-sm align-text-bottom" />
+        {message.content && (
+          <div
+            className={cn(
+              "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+              isUser
+                ? "bg-gray-100 dark:bg-[#2a2d37] text-foreground dark:text-gray-200 rounded-bl-md"
+                : "bg-gray-100 dark:bg-[#2a2d37] text-foreground dark:text-gray-200 rounded-bl-md"
             )}
+          >
+            {/* Render content with basic line break support and markdown */}
+            <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0">
+              <ReactMarkdown>{message.content}</ReactMarkdown>
+              {/* Streaming cursor */}
+              {message.isStreaming && (
+                <span className="inline-block w-1.5 h-4 ml-0.5 bg-current animate-pulse rounded-sm align-text-bottom" />
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Copy button for assistant messages */}
         {!isUser && message.content && !message.isStreaming && (
@@ -75,7 +78,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         {message.hotels && message.hotels.length > 0 && (
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {message.hotels.map((hotel, idx) => (
-              <HotelCard key={hotel._id || idx} hotel={hotel} />
+              <HotelCard
+                key={hotel._id || idx}
+                hotel={hotel}
+                onBook={onBookingAction}
+              />
             ))}
           </div>
         )}
@@ -84,7 +91,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         {message.flights && message.flights.length > 0 && (
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {message.flights.map((flight, idx) => (
-              <FlightCard key={flight._id || idx} flight={flight} />
+              <FlightCard
+                key={flight._id || idx}
+                flight={flight}
+                onBook={onBookingAction}
+              />
             ))}
           </div>
         )}

@@ -10,7 +10,7 @@ from .mcp_client import mcp_manager
 from .prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_FOR_UNKNOWN_NODE, FINALIZER_PROMPT
 
 class TravelIntents(BaseModel):
-    intents: List[Literal["hotel", "flight", "activity", "transport", "weather", "unknown"]] = Field(
+    intents: List[Literal["search_hotel", "book_hotel", "search_flight", "book_flight", "activity", "transport", "weather", "unknown"]] = Field(
         default=["unknown"],
         description="All detected travel intents from the user message."
     )
@@ -18,8 +18,10 @@ class TravelIntents(BaseModel):
 travel_extractor = llm.with_structured_output(TravelIntents)
 
 INTENT_TO_NODE = {
-    "hotel": "hotel_node",
-    "flight": "flight_node",
+    "search_hotel": "hotel_node",
+    "book_hotel": "hotel_node",
+    "search_flight": "flight_node",
+    "book_flight": "flight_node",
     "activity": "activity_node",
     "transport": "transport_node",
     "weather": "weather_node",
@@ -50,21 +52,31 @@ def route_to_agents(state: GraphState):
     if intents == ["unknown"]:
         return "unknown_node"
 
-    # Spreadout to all relevant agent nodes in parallel via Send
-    return [
-        Send(INTENT_TO_NODE[intent], state)
-        for intent in intents
-        if intent in INTENT_TO_NODE
-    ]
+    destinations = []
+    for intent in intents:
+        if intent in INTENT_TO_NODE:
+            destinations.append(Send(INTENT_TO_NODE[intent], state))
+
+    # Deduplicate destinations
+    unique_nodes = list({d.node for d in destinations})
+    return [Send(node, state) for node in unique_nodes]
 
 
 async def hotel_node(state: GraphState) -> dict:
     tools = mcp_manager.get_hotel_tools()
-    
+    user_email = state.get("user_email", "")
+    user_name = state.get("user_name", "")
+
+    auth_context = (
+        f"The authenticated user's name is '{user_name}' and email is '{user_email}'. "
+        "Use these for booking — do NOT ask the user for their name or email."
+    )
+
     system_message = SystemMessage(
-        content="You are a helpful hotel booking assistant. Use the provided tools to search and book hotels. "
+        content=f"You are a helpful hotel booking assistant. {auth_context} "
+                "Use the provided tools to search and book hotels. "
                 "If a tool call fails or the server is unavailable, inform the user gracefully instead of crashing. "
-                "If you need more details from the user (e.g. check-in date, guest name), ask them for it."
+                "If you need more details from the user (e.g. check-in date), ask them for it."
     )
     
     agent = create_react_agent(llm, tools=tools, prompt=system_message)
@@ -75,11 +87,19 @@ async def hotel_node(state: GraphState) -> dict:
 
 async def flight_node(state: GraphState) -> dict:
     tools = mcp_manager.get_flight_tools()
-    
+    user_email = state.get("user_email", "")
+    user_name = state.get("user_name", "")
+
+    auth_context = (
+        f"The authenticated user's name is '{user_name}' and email is '{user_email}'. "
+        "Use these for booking — do NOT ask the user for their name or email."
+    )
+
     system_message = SystemMessage(
-        content="You are a helpful flight booking assistant. Use the provided tools to search and book flights. "
+        content=f"You are a helpful flight booking assistant. {auth_context} "
+                "Use the provided tools to search and book flights. "
                 "If a tool call fails or the server is unavailable, inform the user gracefully instead of crashing. "
-                "If you need more details from the user (e.g. flight date, passenger name), ask them for it."
+                "If you need more details from the user (e.g. flight date), ask them for it."
     )
     
     agent = create_react_agent(llm, tools=tools, prompt=system_message)
@@ -141,7 +161,16 @@ async def weather_node(state: GraphState) -> dict:
 
 
 async def unknown_node(state: GraphState) -> dict:
-    system_message = SystemMessage(content=SYSTEM_PROMPT_FOR_UNKNOWN_NODE)
+    user_email = state.get("user_email", "")
+    user_name = state.get("user_name", "")
+
+    auth_context = (
+        f"The authenticated user's name is '{user_name}' and email is '{user_email}'."
+    )
+
+    system_message = SystemMessage(
+        content=SYSTEM_PROMPT_FOR_UNKNOWN_NODE.format(auth_context=auth_context)
+    )
     
     response = await llm.ainvoke([system_message] + state["messages"])
     return {"response_text": response.content, "finalized": True}
@@ -149,6 +178,12 @@ async def unknown_node(state: GraphState) -> dict:
 
 async def finalizer(state: GraphState) -> dict:
     drafts = state.get("agent_responses", [])
+    user_email = state.get("user_email", "")
+    user_name = state.get("user_name", "")
+
+    auth_context = (
+        f"The authenticated user's name is '{user_name}' and email is '{user_email}'."
+    )
 
     if not drafts:
         return {"response_text": "I'm sorry, something went wrong. Please try again.", "finalized": True}
@@ -157,7 +192,7 @@ async def finalizer(state: GraphState) -> dict:
         f"[Draft {i+1}]\n{d}" for i, d in enumerate(drafts)
     )
     messages = [
-        SystemMessage(content=FINALIZER_PROMPT),
+        SystemMessage(content=FINALIZER_PROMPT.format(auth_context=auth_context)),
         HumanMessage(content=f"Draft answers:\n\n{combined}"),
     ]
     response = await llm.ainvoke(messages)

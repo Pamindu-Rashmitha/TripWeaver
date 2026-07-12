@@ -10,3 +10,7 @@ class GraphState(TypedDict):
     agent_responses: Annotated[List[str], add]
     response_text: str
     finalized: bool
+    user_id: str
+    user_email: str
+    user_name: str
+    authenticated: bool

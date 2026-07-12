@@ -1,8 +1,12 @@
 "use client";
 
 import React from "react";
-import { Compass, Sun, Moon, Trash2 } from "lucide-react";
+import { Sun, Moon, Trash2 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
+import {
+  UserButton,
+} from "@clerk/nextjs";
+import { useAppAuth } from "@/hooks/use-auth";
 
 interface HeaderProps {
   onClearChat?: () => void;
@@ -10,6 +14,7 @@ interface HeaderProps {
 
 export function Header({ onClearChat }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
+  const { isSignedIn, isLoaded } = useAppAuth();
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/40 dark:border-white/5 px-4 md:px-6 backdrop-blur-md bg-background/80 dark:bg-[#0f1117]/80">
@@ -44,6 +49,17 @@ export function Header({ onClearChat }: HeaderProps) {
             <Moon className="h-4 w-4" />
           )}
         </button>
+
+        {/* Clerk Auth UI */}
+        {isLoaded && (
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: "h-7 w-7",
+              },
+            }}
+          />
+        )}
       </div>
     </header>
   );

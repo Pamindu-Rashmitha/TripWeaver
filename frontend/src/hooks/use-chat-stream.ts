@@ -24,7 +24,7 @@ export function useChatStream() {
   const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  const sendMessage = useCallback(async (userMessage: string) => {
+  const sendMessage = useCallback(async (userMessage: string, authToken?: string, user?: { name: string; email: string }) => {
     if (!userMessage.trim()) return;
 
     // Clear previous error
@@ -53,10 +53,19 @@ export function useChatStream() {
     let assistantAdded = false;
 
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (authToken) {
+        headers["Authorization"] = `Bearer ${authToken}`;
+      }
+
       const response = await fetch(ENDPOINTS.chatStream, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage }),
+        headers,
+        body: JSON.stringify({
+          message: userMessage,
+          user_name: user?.name,
+          user_email: user?.email,
+        }),
         signal: controller.signal,
       });
 
@@ -344,3 +353,5 @@ export function useChatStream() {
     setError,
   };
 }
+
+// Test

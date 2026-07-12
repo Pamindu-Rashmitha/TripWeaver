@@ -10,9 +10,10 @@ interface MessageListProps {
   messages: ChatMessage[];
   activity?: string | null;
   className?: string;
+  onBookingAction?: (message: string) => void;
 }
 
-export function MessageList({ messages, activity, className }: MessageListProps) {
+export function MessageList({ messages, activity, className, onBookingAction }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive or content streams in
@@ -29,7 +30,10 @@ export function MessageList({ messages, activity, className }: MessageListProps)
     >
       {messages.map((msg) => (
         <div key={msg.id} className="group">
-          <MessageBubble message={msg} />
+          <MessageBubble
+            message={msg}
+            onBookingAction={onBookingAction}
+          />
         </div>
       ))}
       {activity && <ActivityIndicator activity={activity} />}
@@ -37,4 +41,3 @@ export function MessageList({ messages, activity, className }: MessageListProps)
     </div>
   );
 }
-

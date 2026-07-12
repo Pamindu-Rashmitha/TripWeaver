@@ -8,9 +8,10 @@ import { cn } from "@/lib/utils";
 interface HotelCardProps {
   hotel: Hotel;
   className?: string;
+  onBook?: (message: string) => void;
 }
 
-export function HotelCard({ hotel, className }: HotelCardProps) {
+export function HotelCard({ hotel, className, onBook }: HotelCardProps) {
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
@@ -84,6 +85,18 @@ export function HotelCard({ hotel, className }: HotelCardProps) {
           <span className="text-[11px]">
             +{hotel.amenities.length} amenities
           </span>
+        </div>
+      )}
+
+      {/* Book button */}
+      {onBook && (
+        <div className="mt-3 pt-3 border-t border-amber-200/30 dark:border-amber-800/20">
+          <button
+            onClick={() => onBook(`Book hotel ${hotel.name} in ${hotel.city} for me`)}
+            className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-500 text-white text-xs font-semibold py-2 px-3 transition-colors duration-200"
+          >
+            Book this hotel
+          </button>
         </div>
       )}
 

@@ -1,7 +1,9 @@
 import json
 import contextlib
 import traceback
-from fastapi import FastAPI
+import warnings
+from typing import Optional
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import asyncio
@@ -11,25 +13,34 @@ from entity import ChatRequest, ChatResponse
 from agents.graph import graph
 from agents.mcp_client import mcp_manager
 from agents.llm import llm
+from auth import get_required_user, UserInfo
 
-conversation_history_messages = []
-global_summary = ""
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
-async def _summarize_oldest_message():
-    global global_summary, conversation_history_messages
-    if len(conversation_history_messages) > 3:
-        user_msg, ai_msg = conversation_history_messages.pop(0)
+conversation_histories: dict[str, list] = {}
+conversation_summaries: dict[str, str] = {}
+
+def _get_user_key(user: UserInfo) -> str:
+    """Return a stable key for per-user history."""
+    return user.user_id
+
+
+async def _summarize_oldest_message(user_key: str):
+    history = conversation_histories.get(user_key, [])
+    if len(history) > 3:
+        user_msg, ai_msg = history.pop(0)
+        existing = conversation_summaries.get(user_key, "")
         prompt = f"""Summarize the following new lines of conversation and combine them with the existing summary.
         Keep it concise.
 
-        Existing summary: {global_summary if global_summary else 'None'}
+        Existing summary: {existing if existing else 'None'}
 
         New conversation:
         User: {user_msg}
         AI: {ai_msg}
         """
         response = await llm.ainvoke([HumanMessage(content=prompt)])
-        global_summary = response.content
+        conversation_summaries[user_key] = response.content
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -65,13 +76,15 @@ def _sse_event(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, default=custom_json_encoder)}\n\n"
 
 
-def _build_messages(message: str) -> list:
-    """Build the message list from conversation history + new message."""
+def _build_messages(message: str, user_key: str) -> list:
+    """Build the message list from per-user conversation history + new message."""
     formatted = []
-    if global_summary:
-        formatted.append(SystemMessage(content=f"Summary of previous conversation:\n{global_summary}"))
-        
-    for user_msg, assistant_msg in conversation_history_messages:
+    summary = conversation_summaries.get(user_key, "")
+    if summary:
+        formatted.append(SystemMessage(content=f"Summary of previous conversation:\n{summary}"))
+
+    history = conversation_histories.get(user_key, [])
+    for user_msg, assistant_msg in history:
         formatted.append(HumanMessage(content=user_msg))
         formatted.append(AIMessage(content=assistant_msg))
         
@@ -122,9 +135,11 @@ async def get_weather(city: str):
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    formatted_messages = _build_messages(request.message)
+async def chat(request: ChatRequest, user: UserInfo = Depends(get_required_user)):
+    user_key = _get_user_key(user)
+    formatted_messages = _build_messages(request.message, user_key)
 
+    # Prefer JWT-verified email/name
     initial_state = {
         "messages": formatted_messages,
         "intent": "",
@@ -132,13 +147,17 @@ async def chat(request: ChatRequest):
         "agent_responses": [],
         "response_text": "",
         "finalized": False,
+        "user_id": user.user_id,
+        "user_email": user.email or request.user_email or "",
+        "user_name": user.name or request.user_name or "",
+        "authenticated": True,
     }
 
     result = await graph.ainvoke(initial_state)
     response_text = result.get("response_text", "Something went wrong. Please try again.")
-    conversation_history_messages.append((request.message, response_text))
-    if len(conversation_history_messages) > 3:
-        asyncio.create_task(_summarize_oldest_message())
+    conversation_histories.setdefault(user_key, []).append((request.message, response_text))
+    if len(conversation_histories[user_key]) > 3:
+        asyncio.create_task(_summarize_oldest_message(user_key))
 
     return ChatResponse(
         response=response_text,
@@ -151,13 +170,19 @@ async def chat(request: ChatRequest):
 
 
 @app.post("/chat/stream")
-async def chat_stream(request: ChatRequest):
+async def chat_stream(request: ChatRequest, user: UserInfo = Depends(get_required_user)):
     """
     SSE streaming endpoint.
     Emits events: activity, token, hotels, flights, activities, transport, weather, error, done.
     """
+    user_key = _get_user_key(user)
+
     async def event_generator():
-        formatted_messages = _build_messages(request.message)
+        resolved_email = user.email or request.user_email or ""
+        resolved_name = user.name or request.user_name or ""
+        print(f"DEBUG USER in chat_stream: JWT Info={user}, Resolved Name='{resolved_name}', Resolved Email='{resolved_email}'")
+        
+        formatted_messages = _build_messages(request.message, user_key)
         initial_state = {
             "messages": formatted_messages,
             "intent": "",
@@ -165,6 +190,10 @@ async def chat_stream(request: ChatRequest):
             "agent_responses": [],
             "response_text": "",
             "finalized": False,
+            "user_id": user.user_id,
+            "user_email": resolved_email,
+            "user_name": resolved_name,
+            "authenticated": True,
         }
 
         full_response = ""
@@ -265,11 +294,11 @@ async def chat_stream(request: ChatRequest):
                     except Exception as e:
                         print(f"Failed to parse tool output: {e}")
 
-            # Store in conversation history
+            # Store in per-user conversation history
             if full_response:
-                conversation_history_messages.append((request.message, full_response))
-                if len(conversation_history_messages) > 3:
-                    asyncio.create_task(_summarize_oldest_message())
+                conversation_histories.setdefault(user_key, []).append((request.message, full_response))
+                if len(conversation_histories[user_key]) > 3:
+                    asyncio.create_task(_summarize_oldest_message(user_key))
         except Exception as exc:
             print(f"Stream error: {traceback.format_exc()}")
             yield _sse_event("error", {

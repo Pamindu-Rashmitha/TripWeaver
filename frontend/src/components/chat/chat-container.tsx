@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useCallback } from "react";
 import { useChatStream } from "@/hooks/use-chat-stream";
+import { useAppAuth } from "@/hooks/use-auth";
 import { PromptBox } from "@/components/ui/chatgpt-prompt-input";
 import { MessageList } from "./message-list";
 import { EmptyState } from "./empty-state";
@@ -9,17 +10,25 @@ import { ErrorBanner } from "./error-banner";
 
 
 export function ChatContainer() {
+  const { isSignedIn, getToken, user } = useAppAuth();
+
   const {
     messages,
     activity,
     error,
     isLoading,
-    sendMessage,
+    sendMessage: rawSendMessage,
     retry,
     setError,
   } = useChatStream();
 
   const hasMessages = messages.length > 0;
+
+  // Wrap sendMessage to include the auth token and user info
+  const sendMessage = useCallback(async (message: string) => {
+    const token = await getToken();
+    rawSendMessage(message, token ?? undefined, user ?? undefined);
+  }, [rawSendMessage, getToken, user]);
 
   return (
     <div className="flex h-full flex-col">
@@ -27,7 +36,12 @@ export function ChatContainer() {
       <div className="flex-1 overflow-hidden">
         {hasMessages ? (
           <div className="mx-auto h-full w-full max-w-3xl">
-            <MessageList messages={messages} activity={activity} className="h-full" />
+            <MessageList
+              messages={messages}
+              activity={activity}
+              className="h-full"
+              onBookingAction={sendMessage}
+            />
           </div>
         ) : (
           <EmptyState onSuggestionSelect={sendMessage} />
@@ -66,3 +80,4 @@ export function ChatContainer() {
     </div>
   );
 }
+

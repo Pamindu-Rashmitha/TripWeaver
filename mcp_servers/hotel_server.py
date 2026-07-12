@@ -21,7 +21,11 @@ def get_hotels() -> List[dict]:
     """
     data = _fetch_json(HOTEL_API_BASE)
     if isinstance(data, dict):
-        return data.get("hotels", [])
+        hotels = data.get("hotels", [])
+        for h in hotels:
+            if "_id" in h:
+                h["id"] = h["_id"]
+        return hotels
     return []
 
 @mcp.tool()
@@ -44,7 +48,11 @@ def search_hotel(
 
     data = _fetch_json(f"{HOTEL_API_BASE}/search", params=params)
     if isinstance(data, dict):
-        return data.get("hotels", [])
+        hotels = data.get("hotels", [])
+        for h in hotels:
+            if "_id" in h:
+                h["id"] = h["_id"]
+        return hotels
     return []
 
 @mcp.tool()

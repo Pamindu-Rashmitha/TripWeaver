@@ -21,7 +21,11 @@ def get_flights() -> List[dict]:
     """
     data = _fetch_json(FLIGHT_API_BASE)
     if isinstance(data, dict):
-        return data.get("flights", [])
+        flights = data.get("flights", [])
+        for f in flights:
+            if "_id" in f:
+                f["id"] = f["_id"]
+        return flights
     return []
 
 @mcp.tool()
@@ -56,7 +60,11 @@ def search_flights(
 
     data = _fetch_json(f"{FLIGHT_API_BASE}/search", params=params)
     if isinstance(data, dict):
-        return data.get("flights", [])
+        flights = data.get("flights", [])
+        for f in flights:
+            if "_id" in f:
+                f["id"] = f["_id"]
+        return flights
     return []
 
 @mcp.tool()
