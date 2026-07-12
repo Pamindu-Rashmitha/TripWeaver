@@ -7,7 +7,16 @@ from langgraph.types import Send
 from .llm import llm
 from .entity import GraphState
 from .mcp_client import mcp_manager
-from .prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_FOR_UNKNOWN_NODE, FINALIZER_PROMPT
+from .prompts import (
+    SYSTEM_PROMPT,
+    SYSTEM_PROMPT_FOR_UNKNOWN_NODE,
+    FINALIZER_PROMPT,
+    HOTEL_NODE_PROMPT,
+    FLIGHT_NODE_PROMPT,
+    ACTIVITY_NODE_PROMPT,
+    TRANSPORT_NODE_PROMPT,
+    WEATHER_NODE_PROMPT,
+)
 
 class TravelIntents(BaseModel):
     intents: List[Literal["search_hotel", "book_hotel", "search_flight", "book_flight", "activity", "transport", "weather", "unknown"]] = Field(
@@ -73,10 +82,7 @@ async def hotel_node(state: GraphState) -> dict:
     )
 
     system_message = SystemMessage(
-        content=f"You are a helpful hotel booking assistant. {auth_context} "
-                "Use the provided tools to search and book hotels. "
-                "If a tool call fails or the server is unavailable, inform the user gracefully instead of crashing. "
-                "If you need more details from the user (e.g. check-in date), ask them for it."
+        content=HOTEL_NODE_PROMPT.format(auth_context=auth_context)
     )
     
     agent = create_react_agent(llm, tools=tools, prompt=system_message)
@@ -96,10 +102,7 @@ async def flight_node(state: GraphState) -> dict:
     )
 
     system_message = SystemMessage(
-        content=f"You are a helpful flight booking assistant. {auth_context} "
-                "Use the provided tools to search and book flights. "
-                "If a tool call fails or the server is unavailable, inform the user gracefully instead of crashing. "
-                "If you need more details from the user (e.g. flight date), ask them for it."
+        content=FLIGHT_NODE_PROMPT.format(auth_context=auth_context)
     )
     
     agent = create_react_agent(llm, tools=tools, prompt=system_message)
@@ -112,11 +115,7 @@ async def activity_node(state: GraphState) -> dict:
     tools = mcp_manager.get_activity_tools()
 
     system_message = SystemMessage(
-        content="You are a helpful travel activities assistant. Use the provided tools to search for activities, "
-                "things to do, tours, attractions, and experiences in the user's destination city. "
-                "Present the results in a clear, engaging format with descriptions and links. "
-                "If the user asks about a specific activity, use get_activity_details to find more information. "
-                "If you need more details (e.g. which city), ask the user."
+        content=ACTIVITY_NODE_PROMPT
     )
 
     agent = create_react_agent(llm, tools=tools, prompt=system_message)
@@ -129,11 +128,7 @@ async def transport_node(state: GraphState) -> dict:
     tools = mcp_manager.get_transport_tools()
 
     system_message = SystemMessage(
-        content="You are a helpful local transport assistant. Use the provided tools to search for local "
-                "transportation options, public transit info, and directions in the user's destination city. "
-                "Present the results clearly with practical tips for travelers. "
-                "If the user asks how to get between two specific locations, use get_transport_directions. "
-                "If you need more details (e.g. which city), ask the user."
+        content=TRANSPORT_NODE_PROMPT
     )
 
     agent = create_react_agent(llm, tools=tools, prompt=system_message)
@@ -146,12 +141,7 @@ async def weather_node(state: GraphState) -> dict:
     tools = mcp_manager.get_weather_tools()
 
     system_message = SystemMessage(
-        content="You are a helpful weather assistant for travelers. Use the provided tools to get current weather "
-                "conditions and forecasts for the user's destination city. "
-                "Present weather data clearly with temperature, conditions, humidity, and wind. "
-                "Include practical travel advice based on the weather (e.g. 'bring an umbrella', 'wear sunscreen'). "
-                "If the user asks for a forecast, use get_weather_forecast. For current conditions, use get_current_weather. "
-                "If you need more details (e.g. which city), ask the user."
+        content=WEATHER_NODE_PROMPT
     )
 
     agent = create_react_agent(llm, tools=tools, prompt=system_message)
