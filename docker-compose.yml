@@ -1,0 +1,29 @@
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Pass build-time variables (Next.js needs them during `npm run build`)
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+    ports:
+      - "8080:3000"
+    env_file:
+      - ./frontend/.env.local
+    environment:
+      # override any env vars for runtime
+      - BACKEND_URL=http://backend:8000/chat
+    depends_on:
+      - backend
+    restart: unless-stopped

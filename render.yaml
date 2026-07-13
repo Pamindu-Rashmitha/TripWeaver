@@ -1,0 +1,37 @@
+services:
+  # Backend Service (FastAPI)
+  - type: web
+    name: tripweaver-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    region: oregon 
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: OPENWEATHER_API_KEY
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+    
+  # Frontend Service (Next.js)
+  - type: web
+    name: tripweaver-frontend
+    env: docker
+    dockerContext: ./frontend
+    dockerfilePath: ./frontend/Dockerfile
+    region: oregon
+    envVars:
+      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: BACKEND_URL
+        value: https://tripweaver-backend.onrender.com/chat
