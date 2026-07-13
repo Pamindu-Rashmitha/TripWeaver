@@ -18,6 +18,7 @@ from auth import get_required_user, UserInfo
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
 from cache import redis_cache
+from database import db
 
 def _get_user_key(user: UserInfo) -> str:
     """Return a stable key for per-user history."""
@@ -41,6 +42,15 @@ async def _summarize_oldest_message(user_key: str):
         """
         response = await llm.ainvoke([HumanMessage(content=prompt)])
         await redis_cache.set_conversation_summary(user_key, response.content)
+
+async def _generate_title(prompt: str) -> str:
+    try:
+        sys_msg = SystemMessage(content="Generate a short, 3-5 word title for the following prompt. Respond with only the title, no quotes or punctuation.")
+        usr_msg = HumanMessage(content=prompt)
+        res = await llm.ainvoke([sys_msg, usr_msg])
+        return res.content.strip().strip('"').strip("'")
+    except Exception:
+        return "New Chat"
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -110,6 +120,44 @@ NODE_ACTIVITY = {
 @app.get("/")
 async def hello():
     return {"message": "Hello, World!"}
+
+
+@app.get("/api/conversations")
+async def list_conversations(user: UserInfo = Depends(get_required_user)):
+    if not db.is_enabled():
+        return []
+    
+    # Run synchronously in thread to avoid blocking event loop
+    conversations = await asyncio.to_thread(db.get_conversations, user.user_id)
+    return conversations
+
+@app.get("/api/conversations/{conversation_id}/messages")
+async def get_conversation_messages(conversation_id: str, user: UserInfo = Depends(get_required_user)):
+    if not db.is_enabled():
+        return []
+    
+    messages = await asyncio.to_thread(db.get_messages, conversation_id)
+    return messages
+
+
+@app.delete("/api/conversations/{conversation_id}")
+async def delete_conversation(conversation_id: str, user: UserInfo = Depends(get_required_user)):
+    if not db.is_enabled():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail="Database connection is disabled")
+    
+    success = await asyncio.to_thread(db.delete_conversation, conversation_id, user.user_id)
+    if not success:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Conversation not found or not owned by user")
+    
+    # Invalidate rolling context cache for the user in Redis so they start fresh
+    user_key = _get_user_key(user)
+    await redis_cache.set_conversation_history(user_key, [])
+    await redis_cache.set_conversation_summary(user_key, "")
+    
+    return {"success": True}
+
 
 
 @app.get("/hotels")
@@ -203,6 +251,13 @@ async def chat_stream(request: ChatRequest, user: UserInfo = Depends(get_require
         resolved_email = user.email or request.user_email or ""
         resolved_name = user.name or request.user_name or ""
         print(f"DEBUG USER in chat_stream: JWT Info={user}, Resolved Name='{resolved_name}', Resolved Email='{resolved_email}'")
+        
+        conversation_id = request.conversation_id
+        if db.is_enabled() and not conversation_id:
+            title = await _generate_title(request.message)
+            conversation_id = await asyncio.to_thread(db.create_conversation, user.user_id, title)
+            if conversation_id:
+                yield _sse_event("conversation_info", {"conversation_id": conversation_id, "title": title})
         
         formatted_messages = await _build_messages(request.message, user_key)
         initial_state = {
@@ -318,6 +373,10 @@ async def chat_stream(request: ChatRequest, user: UserInfo = Depends(get_require
 
             # Store in per-user conversation history
             if full_response:
+                if db.is_enabled() and conversation_id:
+                    await asyncio.to_thread(db.add_message, conversation_id, "user", request.message)
+                    await asyncio.to_thread(db.add_message, conversation_id, "ai", full_response)
+
                 history = await redis_cache.get_conversation_history(user_key)
                 history.append((request.message, full_response))
                 await redis_cache.set_conversation_history(user_key, history)

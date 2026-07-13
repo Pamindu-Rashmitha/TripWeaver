@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Sun, Moon, Trash2 } from "lucide-react";
+import { Sun, Moon, Trash2, MessageSquare } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { UserButton } from "@clerk/nextjs";
 import { useAppAuth } from "@/hooks/use-auth";
@@ -9,9 +9,10 @@ import { AnimatedDock, DockItemData } from "@/components/ui/animated-dock";
 
 interface HeaderProps {
   onClearChat?: () => void;
+  onToggleSidebar?: () => void;
 }
 
-export function Header({ onClearChat }: HeaderProps) {
+export function Header({ onClearChat, onToggleSidebar }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { isLoaded } = useAppAuth();
 
@@ -21,6 +22,13 @@ export function Header({ onClearChat }: HeaderProps) {
     dockItems.push({
       onClick: onClearChat,
       Icon: <Trash2 size={15} />,
+    });
+  }
+
+  if (onToggleSidebar) {
+    dockItems.push({
+      onClick: onToggleSidebar,
+      Icon: <MessageSquare size={15} />,
     });
   }
 

@@ -1,26 +1,75 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import { useChatStream } from "@/hooks/use-chat-stream";
 import { useAppAuth } from "@/hooks/use-auth";
 import { PromptBox } from "@/components/ui/chatgpt-prompt-input";
 import { MessageList } from "./message-list";
 import { EmptyState } from "./empty-state";
 import { ErrorBanner } from "./error-banner";
+import { ENDPOINTS } from "@/lib/api";
 
+interface ChatContainerProps {
+  activeConversationId: string | null;
+  onConversationChange: (id: string | null) => void;
+}
 
-export function ChatContainer() {
+export function ChatContainer({ activeConversationId, onConversationChange }: ChatContainerProps) {
   const { isSignedIn, getToken, user } = useAppAuth();
 
   const {
     messages,
+    setMessages,
+    conversationId,
+    setConversationId,
     activity,
     error,
     isLoading,
     sendMessage: rawSendMessage,
     retry: rawRetry,
     setError,
-  } = useChatStream();
+  } = useChatStream(activeConversationId || undefined);
+
+  // Sync conversationId to parent when new chat is started
+  useEffect(() => {
+    if (conversationId && conversationId !== activeConversationId) {
+      onConversationChange(conversationId);
+    }
+  }, [conversationId, activeConversationId, onConversationChange]);
+
+  // Sync activeConversationId downwards
+  useEffect(() => {
+    if (activeConversationId === null) {
+      setConversationId(null);
+      setMessages([]);
+    } else if (activeConversationId !== conversationId) {
+      setConversationId(activeConversationId);
+      loadMessages(activeConversationId);
+    }
+  }, [activeConversationId]);
+
+  const loadMessages = async (id: string) => {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${ENDPOINTS.conversations}/${id}/messages`, {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` })
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const mapped = data.map((m: any) => ({
+          id: m.id,
+          role: m.role as "user" | "assistant",
+          content: m.content,
+          timestamp: new Date(m.created_at)
+        }));
+        setMessages(mapped);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const hasMessages = messages.length > 0;
 
@@ -77,7 +126,7 @@ export function ChatContainer() {
           />
 
           {/* Footer */}
-          <p className="mt-2 text-center text-[11px] text-muted-foreground/60 dark:text-gray-600">
+          <p className="mt-2 text-center text-[11px] text-muted-foreground/60 dark:text-gray-500">
             TripWeaver AI may produce inaccurate information. Verify important
             details before booking.
           </p>

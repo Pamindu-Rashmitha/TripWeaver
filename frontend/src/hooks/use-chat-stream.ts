@@ -17,8 +17,9 @@ function generateId(): string {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-export function useChatStream() {
+export function useChatStream(initialConversationId?: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
   const [activity, setActivity] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -65,6 +66,7 @@ export function useChatStream() {
           message: userMessage,
           user_name: user?.name,
           user_email: user?.email,
+          conversation_id: conversationId,
         }),
         signal: controller.signal,
       });
@@ -129,6 +131,11 @@ export function useChatStream() {
               const data = JSON.parse(dataStr);
 
               switch (eventType) {
+                case "conversation_info":
+                  setConversationId(data.conversation_id);
+                  // Optional: if parent needs to know, we could emit an event here
+                  break;
+
                 case "activity":
                   setActivity(data.status);
                   accumulatedThinkingSteps = [
@@ -344,6 +351,9 @@ export function useChatStream() {
 
   return {
     messages,
+    setMessages,
+    conversationId,
+    setConversationId,
     activity,
     error,
     isLoading,

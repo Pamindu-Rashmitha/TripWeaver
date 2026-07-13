@@ -12,30 +12,24 @@ const suggestions = [
     icon: Hotel,
     label: "Hotels in Bangkok",
     message: "Show me hotels in Bangkok",
-    color: "text-amber-500 dark:text-amber-400",
-    bg: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/50",
+    color: "text-gray-500 dark:text-gray-400",
+    bg: "bg-gray-50 dark:bg-gray-950/20 border-gray-300 dark:border-gray-800/80",
   },
   {
-    icon: Ticket,
-    label: "Activities in Bangkok",
-    message: "What are the best activities and things to do in Bangkok?",
-    color: "text-emerald-500 dark:text-emerald-400",
-    bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/50",
+    icon: MapPin,
+    label: "Activities in Paris",
+    message: "What are the best activities and things to do in Paris?",
+    color: "text-gray-500 dark:text-gray-400",
+    bg: "bg-gray-50 dark:bg-gray-950/20 border-gray-300 dark:border-gray-800/80",
   },
   {
     icon: Bus,
     label: "Transport in Singapore",
     message: "How do I get around Singapore? What local transport is available?",
-    color: "text-violet-500 dark:text-violet-400",
-    bg: "bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800/50",
-  },
-  {
-    icon: CloudSun,
-    label: "Weather in Tokyo",
-    message: "What's the current weather in Tokyo?",
-    color: "text-sky-500 dark:text-sky-400",
-    bg: "bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-800/50",
-  },
+    color: "text-gray-500 dark:text-gray-400",
+    bg: "bg-gray-50 dark:bg-gray-950/20 border-gray-300 dark:border-gray-800/80",
+  }
+
 ];
 
 export function QuickReplies({ onSelect }: QuickRepliesProps) {
