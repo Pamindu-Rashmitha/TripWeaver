@@ -319,7 +319,7 @@ export function useChatStream() {
     }
   }, []);
 
-  const retry = useCallback(() => {
+  const retry = useCallback((authToken?: string, user?: { name: string; email: string }) => {
     // Find the last user message and resend it
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
     if (lastUserMsg) {
@@ -332,7 +332,7 @@ export function useChatStream() {
         return prev;
       });
       setError(null);
-      sendMessage(lastUserMsg.content);
+      sendMessage(lastUserMsg.content, authToken, user);
     }
   }, [messages, sendMessage]);
 

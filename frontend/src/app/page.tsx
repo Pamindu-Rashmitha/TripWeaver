@@ -13,7 +13,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background/50 dark:bg-[#0f1117]">
+    <div className="flex h-screen flex-col overflow-hidden bg-transparent">
       <Header onClearChat={handleClearChat} />
 
       {/* Main chat area */}

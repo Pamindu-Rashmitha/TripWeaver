@@ -3,10 +3,9 @@
 import React from "react";
 import { Sun, Moon, Trash2 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
-import {
-  UserButton,
-} from "@clerk/nextjs";
+import { UserButton } from "@clerk/nextjs";
 import { useAppAuth } from "@/hooks/use-auth";
+import { AnimatedDock, DockItemData } from "@/components/ui/animated-dock";
 
 interface HeaderProps {
   onClearChat?: () => void;
@@ -14,11 +13,31 @@ interface HeaderProps {
 
 export function Header({ onClearChat }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
-  const { isSignedIn, isLoaded } = useAppAuth();
+  const { isLoaded } = useAppAuth();
+
+  const dockItems: DockItemData[] = [];
+
+  if (onClearChat) {
+    dockItems.push({
+      onClick: onClearChat,
+      Icon: <Trash2 size={15} />,
+    });
+  }
+
+  dockItems.push({
+    onClick: toggleTheme,
+    Icon: theme === "dark" ? <Sun size={15} /> : <Moon size={15} />,
+  });
+
+  if (isLoaded) {
+    dockItems.push({
+      Icon: <UserButton appearance={{ elements: { avatarBox: "h-full w-full rounded-full" } }} />,
+    });
+  }
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/40 dark:border-white/5 px-4 md:px-6 backdrop-blur-md bg-background/80 dark:bg-[#0f1117]/80">
-      <div className="flex items-center gap-2.5">
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/40 dark:border-white/5 px-4 md:px-6 bg-transparent z-50">
+      <div className="flex items-center gap-1/2">
         <span className="text-base font-semibold tracking-tight text-foreground dark:text-white">
           TripWeaver
         </span>
@@ -27,39 +46,8 @@ export function Header({ onClearChat }: HeaderProps) {
         </span>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1">
-        {onClearChat && (
-          <button
-            onClick={onClearChat}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent dark:hover:bg-[#1e2028] transition-colors"
-            title="Clear conversation"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        )}
-        <button
-          onClick={toggleTheme}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent dark:hover:bg-[#1e2028] transition-colors"
-          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-        >
-          {theme === "dark" ? (
-            <Sun className="h-4 w-4" />
-          ) : (
-            <Moon className="h-4 w-4" />
-          )}
-        </button>
-
-        {/* Clerk Auth UI */}
-        {isLoaded && (
-          <UserButton
-            appearance={{
-              elements: {
-                avatarBox: "h-7 w-7",
-              },
-            }}
-          />
-        )}
+      <div className="flex items-center">
+        <AnimatedDock items={dockItems} className="mx-0" />
       </div>
     </header>
   );

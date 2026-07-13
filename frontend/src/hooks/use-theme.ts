@@ -11,12 +11,21 @@ export function useTheme() {
     const initial = stored === "light" ? "light" : "dark";
     setThemeState(initial);
     document.documentElement.classList.toggle("dark", initial === "dark");
+
+    const handleThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<"dark" | "light">;
+      setThemeState(customEvent.detail);
+    };
+
+    window.addEventListener("theme-change", handleThemeChange);
+    return () => window.removeEventListener("theme-change", handleThemeChange);
   }, []);
 
   const setTheme = useCallback((newTheme: "dark" | "light") => {
     setThemeState(newTheme);
     localStorage.setItem("tripweaver-theme", newTheme);
     document.documentElement.classList.toggle("dark", newTheme === "dark");
+    window.dispatchEvent(new CustomEvent("theme-change", { detail: newTheme }));
   }, []);
 
   const toggleTheme = useCallback(() => {

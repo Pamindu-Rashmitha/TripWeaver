@@ -70,8 +70,15 @@ async def verify_clerk_token(token: str) -> Optional[UserInfo]:
 
     except Exception as e:
         import sys
-        print(f"Clerk token verification failed: {e}")
+        import traceback
+        error_msg = f"Clerk token verification failed: {e}\n{traceback.format_exc()}\n"
+        print(error_msg)
         sys.stdout.flush()
+        try:
+            with open("verification_error.log", "a", encoding="utf-8") as f:
+                f.write(error_msg)
+        except Exception:
+            pass
         return None
 
 async def get_required_user(request: Request) -> UserInfo:

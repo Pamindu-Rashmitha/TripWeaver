@@ -3,7 +3,7 @@ import { Inter, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ClerkProvider } from "@clerk/nextjs";
-
+import TravelBackground from "@/components/backgrounds/TravelBackground";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
@@ -31,15 +31,19 @@ export default function RootLayout({
       <html lang="en" className="dark" suppressHydrationWarning>
         <body
           className={cn(
-            "min-h-screen bg-background font-sans text-foreground antialiased selection:bg-indigo-500/30",
+            "min-h-screen font-sans text-foreground antialiased selection:bg-indigo-500/30",
             inter.variable,
             dmSans.variable
           )}
         >
-          <div className="relative flex min-h-screen flex-col">
-            {/* Subtle global background effects */}
-            <div className="fixed inset-0 z-[-1] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-background to-background dark:from-indigo-900/20" />
+          {/* Subtle global background effects for dark mode */}
+          <div className="fixed inset-0 z-[-1] pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-background to-background dark:from-indigo-900/20" />
+          
+          <div className="fixed inset-0 z-0 pointer-events-none">
+            <TravelBackground />
+          </div>
 
+          <div className="relative z-10 flex min-h-screen flex-col">
             <main className="flex-1">
               {children}
             </main>

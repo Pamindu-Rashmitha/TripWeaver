@@ -18,7 +18,7 @@ export function ChatContainer() {
     error,
     isLoading,
     sendMessage: rawSendMessage,
-    retry,
+    retry: rawRetry,
     setError,
   } = useChatStream();
 
@@ -29,6 +29,11 @@ export function ChatContainer() {
     const token = await getToken();
     rawSendMessage(message, token ?? undefined, user ?? undefined);
   }, [rawSendMessage, getToken, user]);
+
+  const handleRetry = useCallback(async () => {
+    const token = await getToken();
+    rawRetry(token ?? undefined, user ?? undefined);
+  }, [rawRetry, getToken, user]);
 
   return (
     <div className="flex h-full flex-col">
@@ -41,7 +46,7 @@ export function ChatContainer() {
               activity={activity}
               className="h-full"
               onBookingAction={sendMessage}
-              onRetry={retry}
+              onRetry={handleRetry}
             />
           </div>
         ) : (
@@ -50,7 +55,7 @@ export function ChatContainer() {
       </div>
 
       {/* Bottom input area */}
-      <div className="shrink-0 bg-background/80 dark:bg-[#0f1117]/80 backdrop-blur-md border-t border-border/40 dark:border-white/5 px-4 pb-4 pt-2 md:px-8">
+      <div className="shrink-0 bg-transparent border-t border-border/40 dark:border-white/5 px-4 pb-4 pt-2 md:px-8">
         {/* Centered content wrapper */}
         <div className="mx-auto w-full max-w-3xl">
 
@@ -59,7 +64,7 @@ export function ChatContainer() {
           {error && (
             <ErrorBanner
               message={error}
-              onRetry={retry}
+              onRetry={handleRetry}
               onDismiss={() => setError(null)}
               className="mb-2"
             />
