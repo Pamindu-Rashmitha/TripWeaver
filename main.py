@@ -3,10 +3,12 @@ import contextlib
 import traceback
 import warnings
 from typing import Optional
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import asyncio
+import os
+from openai import AsyncOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from entity import ChatRequest, ChatResponse
@@ -14,6 +16,8 @@ from agents.graph import graph
 from agents.mcp_client import mcp_manager
 from agents.llm import llm
 from auth import get_required_user, UserInfo
+
+openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
@@ -205,6 +209,30 @@ async def get_weather(city: str):
         return res
     return {"error": "Weather tool not available"}
 
+
+@app.post("/api/transcribe")
+async def transcribe_audio(file: UploadFile = File(...), user: UserInfo = Depends(get_required_user)):
+    try:
+        import tempfile
+        ext = os.path.splitext(file.filename)[1] if file.filename else ".webm"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+
+        with open(temp_file_path, "rb") as audio_file:
+            transcript = await openai_client.audio.transcriptions.create(
+                model="whisper-1", 
+                file=audio_file
+            )
+            
+        os.remove(temp_file_path)
+        return {"text": transcript.text}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, user: UserInfo = Depends(get_required_user)):

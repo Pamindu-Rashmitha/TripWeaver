@@ -13,8 +13,12 @@ import {
   MapPin,
   ClipboardList,
   Ticket,
+  Mic,
+  Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAppAuth } from "@/hooks/use-auth";
+import { ENDPOINTS } from "@/lib/api";
 
 //  Radix Primitives
 const TooltipProvider = TooltipPrimitive.Provider;
@@ -120,6 +124,11 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
     const [value, setValue] = React.useState("");
     const [selectedTool, setSelectedTool] = React.useState<string | null>(null);
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
+    
+    const [isRecording, setIsRecording] = React.useState(false);
+    const [isTranscribing, setIsTranscribing] = React.useState(false);
+    const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+    const { getToken } = useAppAuth();
 
     React.useImperativeHandle(ref, () => internalTextareaRef.current!, []);
 
@@ -151,6 +160,60 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSend();
+      }
+    };
+
+    const toggleRecording = async () => {
+      if (isRecording) {
+        mediaRecorderRef.current?.stop();
+        setIsRecording(false);
+        return;
+      }
+      
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        const audioChunks: Blob[] = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          setIsTranscribing(true);
+          const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+          const formData = new FormData();
+          formData.append("file", audioBlob, "recording.webm");
+          
+          try {
+            const token = await getToken();
+            const res = await fetch(ENDPOINTS.transcribe, {
+              method: "POST",
+              headers: {
+                ...(token && { Authorization: `Bearer ${token}` })
+              },
+              body: formData
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.text) {
+                setValue((prev) => (prev ? prev + " " + data.text : data.text));
+              }
+            }
+          } catch (e) {
+            console.error("Transcription failed", e);
+          } finally {
+            setIsTranscribing(false);
+            stream.getTracks().forEach(track => track.stop());
+          }
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+      } catch (err) {
+        console.error("Error accessing microphone", err);
+        alert("Microphone access denied or unavailable.");
       }
     };
 
@@ -195,7 +258,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
           value={value}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder="Let's plan your next adventure..."
+          placeholder={isTranscribing ? "Transcribing..." : isRecording ? "Listening..." : "Let's plan your next adventure..."}
           className="custom-scrollbar w-full resize-none border-0 bg-transparent p-3 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-gray-300 focus:ring-0 focus-visible:outline-none min-h-12"
           {...props}
         />
@@ -259,6 +322,28 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
 
               {/* Right-aligned buttons */}
               <div className="ml-auto flex items-center gap-2">
+
+                {/* Microphone button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={toggleRecording}
+                      disabled={isTranscribing}
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none hover:bg-accent dark:hover:bg-[#515151]",
+                        isRecording ? "text-red-500 animate-pulse" : "text-muted-foreground",
+                        isTranscribing ? "opacity-50" : ""
+                      )}
+                    >
+                      {isRecording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-4 w-4" />}
+                      <span className="sr-only">{isRecording ? "Stop recording" : "Start recording"}</span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" showArrow={true}>
+                    <p>{isRecording ? "Stop recording" : isTranscribing ? "Transcribing..." : "Voice input"}</p>
+                  </TooltipContent>
+                </Tooltip>
 
                 {/* Send button */}
                 <Tooltip>

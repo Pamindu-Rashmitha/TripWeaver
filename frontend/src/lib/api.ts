@@ -10,4 +10,5 @@ export const ENDPOINTS = {
   hotels: `${API_BASE_URL}/hotels`,
   flights: `${API_BASE_URL}/flights`,
   conversations: `${API_BASE_URL}/api/conversations`,
+  transcribe: `${API_BASE_URL}/api/transcribe`,
 } as const;
