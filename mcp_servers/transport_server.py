@@ -100,4 +100,5 @@ def get_transport_directions(city: str, from_location: str, to_location: str) ->
 
 
 if __name__ == "__main__":
+    cache.connect()
     mcp.run()

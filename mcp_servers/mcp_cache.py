@@ -19,7 +19,8 @@ class McpCache:
         
         # In-memory sync fallback
         self._fallback_store: dict[str, tuple[float, Any]] = {}
-        
+
+    def connect(self):
         try:
             self.redis = redis.from_url(self.redis_url, decode_responses=True)
             self.redis.ping()
@@ -28,6 +29,11 @@ class McpCache:
             logger.warning(f"[{self.server_name}] Redis unavailable, using sync fallback. Error: {e}")
             self.redis = None
             self.use_fallback = True
+
+    def disconnect(self):
+        if self.redis:
+            self.redis.close()
+            self.redis = None
 
     def make_key(self, tool_name: str, *args, **kwargs) -> str:
         # Create a deterministic parameter hash

@@ -180,4 +180,5 @@ def get_weather_forecast(city: str, days: int = 5) -> dict:
 
 
 if __name__ == "__main__":
+    cache.connect()
     mcp.run()

@@ -108,4 +108,5 @@ def book_flight(flight_id: str, passenger_name: str, passenger_email: str) -> di
     return response.json()
 
 if __name__ == "__main__":
+    cache.connect()
     mcp.run()

@@ -90,4 +90,5 @@ def get_activity_details(query: str) -> List[dict]:
 
 
 if __name__ == "__main__":
+    cache.connect()
     mcp.run()

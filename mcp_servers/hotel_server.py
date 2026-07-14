@@ -104,4 +104,5 @@ def book_hotel(
     return response.json()
 
 if __name__ == "__main__":
+    cache.connect()
     mcp.run()
