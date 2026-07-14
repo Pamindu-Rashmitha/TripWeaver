@@ -34,12 +34,12 @@ const suggestions = [
 
 export function QuickReplies({ onSelect }: QuickRepliesProps) {
   return (
-    <div className="flex flex-wrap justify-center gap-2">
+    <div className="flex w-full overflow-x-auto gap-2 pb-2 sm:pb-0 sm:flex-wrap sm:justify-center [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {suggestions.map((item) => (
         <button
           key={item.label}
           onClick={() => onSelect(item.message)}
-          className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium transition-all hover:scale-[1.03] hover:shadow-md active:scale-[0.98] ${item.bg}`}
+          className={`shrink-0 inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium transition-all hover:scale-[1.03] hover:shadow-md active:scale-[0.98] ${item.bg}`}
         >
           <item.icon className={`h-4 w-4 ${item.color}`} />
           <span className="text-foreground dark:text-gray-200">

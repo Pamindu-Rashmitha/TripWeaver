@@ -6,6 +6,7 @@ import { useAppAuth } from "@/hooks/use-auth";
 import { PromptBox } from "@/components/ui/chatgpt-prompt-input";
 import { MessageList } from "./message-list";
 import { EmptyState } from "./empty-state";
+import { QuickReplies } from "./quick-replies";
 import { ErrorBanner } from "./error-banner";
 import { ENDPOINTS } from "@/lib/api";
 
@@ -111,6 +112,11 @@ export function ChatContainer({ activeConversationId, onConversationChange }: Ch
         {/* Centered content wrapper */}
         <div className="mx-auto w-full max-w-3xl">
 
+          {!hasMessages && (
+            <div className="mb-4">
+              <QuickReplies onSelect={sendMessage} />
+            </div>
+          )}
 
           {/* Error banner */}
           {error && (

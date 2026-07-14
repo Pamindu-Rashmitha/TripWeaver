@@ -2,7 +2,6 @@
 
 import React from "react";
 import { Compass } from "lucide-react";
-import { QuickReplies } from "./quick-replies";
 
 interface EmptyStateProps {
   onSuggestionSelect: (message: string) => void;
@@ -23,8 +22,6 @@ export function EmptyState({ onSuggestionSelect }: EmptyStateProps) {
         </p>
       </div>
 
-      {/* Quick suggestions */}
-      <QuickReplies onSelect={onSuggestionSelect} />
     </div>
   );
 }
