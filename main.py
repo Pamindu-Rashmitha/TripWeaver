@@ -54,14 +54,18 @@ async def _generate_title(prompt: str) -> str:
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
+    print("Connecting Redis...")
+    await redis_cache.connect()
+
     print("Initializing MCP Client...")
     await mcp_manager.initialize()
-    await redis_cache.connect()
+
     yield
-    await redis_cache.disconnect()
+
     print("Cleaning up MCP Client...")
     await mcp_manager.cleanup()
 
+    await redis_cache.disconnect()
 app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
