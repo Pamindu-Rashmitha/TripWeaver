@@ -324,7 +324,7 @@ export function useChatStream(initialConversationId?: string) {
       setActivity(null);
       abortRef.current = null;
     }
-  }, []);
+  }, [conversationId]);
 
   const retry = useCallback((authToken?: string, user?: { name: string; email: string }) => {
     // Find the last user message and resend it

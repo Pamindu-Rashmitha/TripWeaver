@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { PenBoxIcon, Plus, ChevronRight, X, Trash2 } from "lucide-react";
 import { ENDPOINTS } from "@/lib/api";
@@ -23,13 +23,7 @@ export function ChatSidebar({ isOpen, onClose, onSelectConversation, activeConve
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      loadConversations();
-    }
-  }, [isOpen]);
-
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     setIsLoading(true);
     try {
       const token = await getToken();
@@ -43,11 +37,17 @@ export function ChatSidebar({ isOpen, onClose, onSelectConversation, activeConve
         setConversations(data);
       }
     } catch (e) {
-      console.error("Failed to load conversations:", e);
+      console.error("Failed to load conversations", e);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [getToken]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadConversations();
+    }
+  }, [isOpen, loadConversations]);
 
   const handleDeleteConversation = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this chat?")) {
