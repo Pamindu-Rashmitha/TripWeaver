@@ -10,7 +10,7 @@ interface EmptyStateProps {
 
 export function EmptyState({ onSuggestionSelect }: EmptyStateProps) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-57 px-4 py-16">
+    <div className="flex flex-1 flex-col items-center justify-center gap-8 px-4 py-16">
 
       {/* Heading */}
       <div className="text-center space-y-2 mt-16">

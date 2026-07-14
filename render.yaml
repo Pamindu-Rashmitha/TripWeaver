@@ -36,4 +36,4 @@ services:
       - key: CLERK_SECRET_KEY
         sync: false
       - key: BACKEND_URL
-        value: https://tripweaver-backend.onrender.com/chat
+        value: https://tripweaver-n0qa.onrender.com
