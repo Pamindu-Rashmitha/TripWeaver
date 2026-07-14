@@ -49,7 +49,7 @@ export function Header({ onClearChat, onToggleSidebar }: HeaderProps) {
         <span className="text-base font-semibold tracking-tight text-foreground dark:text-white">
           TripWeaver
         </span>
-        <span className="hidden sm:inline-block rounded-full bg-indigo-100 dark:bg-indigo-950/50 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-400">
+        <span className="inline-block rounded-full bg-indigo-100 dark:bg-indigo-950/50 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-400">
           AI
         </span>
       </div>

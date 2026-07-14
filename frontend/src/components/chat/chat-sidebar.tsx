@@ -89,7 +89,7 @@ export function ChatSidebar({ isOpen, onClose, onSelectConversation, activeConve
             <span className="text-base font-semibold tracking-tight text-foreground dark:text-white">
               TripWeaver
             </span>
-            <span className="hidden sm:inline-block rounded-full bg-indigo-100 dark:bg-indigo-950/50 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-400">
+            <span className="inline-block rounded-full bg-indigo-100 dark:bg-indigo-950/50 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-400">
               AI
             </span>
           </div>
@@ -143,12 +143,12 @@ export function ChatSidebar({ isOpen, onClose, onSelectConversation, activeConve
                       e.stopPropagation();
                       handleDeleteConversation(conv.id);
                     }}
-                    className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                    className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded text-zinc-400 hover:text-red-500 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-opacity"
                     title="Delete Chat"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
-                  <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${activeConversationId === conv.id ? "opacity-100 text-zinc-400" : "text-zinc-300 dark:text-zinc-600"
+                  <ChevronRight className={`w-4 h-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity ${activeConversationId === conv.id ? "!opacity-100 text-zinc-400" : "text-zinc-300 dark:text-zinc-600"
                     }`} />
                 </div>
               </div>
