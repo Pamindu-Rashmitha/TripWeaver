@@ -30,12 +30,15 @@ export function ChatContainer({ activeConversationId, onConversationChange }: Ch
     setError,
   } = useChatStream(activeConversationId || undefined);
 
+  const prevConversationIdRef = React.useRef<string | null>(conversationId);
+
   // Sync conversationId to parent when new chat is started
   useEffect(() => {
-    if (conversationId && conversationId !== activeConversationId) {
+    if (conversationId && conversationId !== prevConversationIdRef.current) {
       onConversationChange(conversationId);
     }
-  }, [conversationId, activeConversationId, onConversationChange]);
+    prevConversationIdRef.current = conversationId;
+  }, [conversationId, onConversationChange]);
 
   // Sync activeConversationId downwards
   useEffect(() => {
