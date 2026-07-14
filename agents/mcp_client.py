@@ -27,9 +27,10 @@ class MCPClientManager:
             weather_script = os.path.join(base_dir, "mcp_servers", "weather_server.py")
             
             python_exe = sys.executable
+            server_env = dict(os.environ)
 
             # Hotel Server Setup
-            hotel_params = StdioServerParameters(command=python_exe, args=[hotel_script])
+            hotel_params = StdioServerParameters(command=python_exe, args=[hotel_script], env=server_env)
             hotel_transport = await stack.enter_async_context(stdio_client(hotel_params))
             h_read, h_write = hotel_transport
             hotel_session = await stack.enter_async_context(ClientSession(h_read, h_write))
@@ -37,7 +38,7 @@ class MCPClientManager:
             self.hotel_tools = await load_mcp_tools(hotel_session)
 
             # Flight Server Setup
-            flight_params = StdioServerParameters(command=python_exe, args=[flight_script])
+            flight_params = StdioServerParameters(command=python_exe, args=[flight_script], env=server_env)
             flight_transport = await stack.enter_async_context(stdio_client(flight_params))
             f_read, f_write = flight_transport
             flight_session = await stack.enter_async_context(ClientSession(f_read, f_write))
@@ -45,7 +46,7 @@ class MCPClientManager:
             self.flight_tools = await load_mcp_tools(flight_session)
 
             # Activity Server Setup
-            activity_params = StdioServerParameters(command=python_exe, args=[activity_script])
+            activity_params = StdioServerParameters(command=python_exe, args=[activity_script], env=server_env)
             activity_transport = await stack.enter_async_context(stdio_client(activity_params))
             a_read, a_write = activity_transport
             activity_session = await stack.enter_async_context(ClientSession(a_read, a_write))
@@ -53,7 +54,7 @@ class MCPClientManager:
             self.activity_tools = await load_mcp_tools(activity_session)
 
             # Transport Server Setup
-            transport_params = StdioServerParameters(command=python_exe, args=[transport_script])
+            transport_params = StdioServerParameters(command=python_exe, args=[transport_script], env=server_env)
             transport_transport = await stack.enter_async_context(stdio_client(transport_params))
             t_read, t_write = transport_transport
             transport_session = await stack.enter_async_context(ClientSession(t_read, t_write))
@@ -61,7 +62,7 @@ class MCPClientManager:
             self.transport_tools = await load_mcp_tools(transport_session)
 
             # Weather Server Setup
-            weather_params = StdioServerParameters(command=python_exe, args=[weather_script])
+            weather_params = StdioServerParameters(command=python_exe, args=[weather_script], env=server_env)
             weather_transport = await stack.enter_async_context(stdio_client(weather_params))
             w_read, w_write = weather_transport
             weather_session = await stack.enter_async_context(ClientSession(w_read, w_write))

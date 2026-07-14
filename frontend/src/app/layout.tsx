@@ -1,18 +1,8 @@
 import type { Metadata } from "next";
-import { Inter, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ClerkProvider } from "@clerk/nextjs";
 import TravelBackground from "@/components/backgrounds/TravelBackground";
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-});
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  variable: "--font-heading",
-});
 
 export const metadata: Metadata = {
   title: "TripWeaver",
@@ -31,9 +21,7 @@ export default function RootLayout({
       <html lang="en" className="dark" suppressHydrationWarning>
         <body
           className={cn(
-            "min-h-screen font-sans text-foreground antialiased selection:bg-indigo-500/30",
-            inter.variable,
-            dmSans.variable
+            "min-h-screen font-sans text-foreground antialiased selection:bg-indigo-500/30"
           )}
         >
           {/* Subtle global background effects for dark mode */}
