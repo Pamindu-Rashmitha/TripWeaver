@@ -11,6 +11,8 @@ services:
         sync: false
       - key: TAVILY_API_KEY
         sync: false
+      - key: GROQ_API_KEY
+        sync: false
       - key: OPENWEATHER_API_KEY
         sync: false
       - key: CLERK_PUBLISHABLE_KEY

@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import asyncio
 import os
-from openai import AsyncOpenAI
+from groq import AsyncGroq
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from entity import ChatRequest, ChatResponse
@@ -17,7 +17,7 @@ from agents.mcp_client import mcp_manager
 from agents.llm import llm
 from auth import get_required_user, UserInfo
 
-openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+groq_client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
@@ -221,8 +221,8 @@ async def transcribe_audio(file: UploadFile = File(...), user: UserInfo = Depend
             temp_file_path = temp_file.name
 
         with open(temp_file_path, "rb") as audio_file:
-            transcript = await openai_client.audio.transcriptions.create(
-                model="whisper-1", 
+            transcript = await groq_client.audio.transcriptions.create(
+                model="whisper-large-v3", 
                 file=audio_file
             )
             
