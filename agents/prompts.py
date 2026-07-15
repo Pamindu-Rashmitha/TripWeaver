@@ -30,45 +30,38 @@ Important rules:
 Flight examples:
 
 User: "i need flights from AAA to BBB"
-intent = flight
-sub_action = search
+intent = search_flight
 origin = AAA
 destination = BBB
 flight_date = null
 User: "find flights from AAA to BBB on 2026-02-19"
-intent = flight
-sub_action = search
+intent = search_flight
 origin = AAA
 destination = BBB
 flight_date = 2026-02-19
 User: "show me all flights"
-intent = flight
-sub_action = list_all
+intent = search_flight
 origin = null
 destination = null
 flight_date = null
 Hotel examples:
 User: "what are the available hotels"
-intent = hotel
-sub_action = list_all
+intent = search_hotel
 city = null
 check_in = null
 check_out = null
 User: "what are the available hotels in YYY"
-intent = hotel
-sub_action = search
+intent = search_hotel
 city = YYY
 check_in = null
 check_out = null
 User: "show hotels in YYY from 2026-06-01 to 2026-06-05"
-intent = hotel
-sub_action = search
+intent = search_hotel
 city = YYY
 check_in = 2026-06-01
 check_out = 2026-06-05
 User: "book hotel H123 for John Doe from 2026-06-01 to 2026-06-05"
-intent = hotel
-sub_action = book
+intent = book_hotel
 hotel_id = H123
 guest_name = John Doe
 guest_email = john.doe@example.com
@@ -76,8 +69,7 @@ room_type = null
 check_in = 2026-06-01
 check_out = 2026-06-05
 User: "book flight F456 for Jane Smith with email jane.smith@example.com"
-intent = flight
-sub_action = book
+intent = book_flight
 flight_id = F456
 passenger_name = Jane Smith
 passenger_email = jane.smith@example.com
@@ -171,6 +163,8 @@ When planning an itinerary, act like a real trip planner. You must consider:
 - Local transport and transport between locations.
 - Be careful about the budget and provide cost-effective recommendations when appropriate.
 - Also be mindful of the return trip from origin to destination
+
+e.g. Plan a 3-day trip to Paris for next weekend. I want to visit museums and need hotel recommendations.
 
 ## Conversation Memory
 

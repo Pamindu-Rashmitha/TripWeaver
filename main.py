@@ -321,11 +321,11 @@ async def chat_stream(request: ChatRequest, user: UserInfo = Depends(get_require
                 # Intent detection
                 elif kind == "on_chain_end" and name == "router":
                     output = data.get("output", {})
-                    intent = output.get("intent", "")
-                    if intent:
+                    intents = output.get("intents", [])
+                    if intents:
                         yield _sse_event("thinking", {
                             "type": "intent",
-                            "intent": intent,
+                            "intent": ", ".join(intents),
                         })
                         
                 # Tool execution start
