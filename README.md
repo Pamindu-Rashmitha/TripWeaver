@@ -30,6 +30,10 @@ OPENWEATHER_API_KEY=your_openweather_api_key
 REDIS_URL=your_redis_connection_url
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_anon_key
+
+# Clerk Authentication Keys
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
 ```
 
 ### Frontend (`frontend/.env.local`)
@@ -37,7 +41,10 @@ Create a `.env.local` file in the `frontend` directory:
 
 ```env
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
 BACKEND_URL=http://localhost:8000/chat
+
+NEXT_PUBLIC_API_URL=your_deployed_url (If deploying)
 ```
 
 ---
