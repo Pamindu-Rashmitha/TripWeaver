@@ -45,7 +45,7 @@ export function Header({ onClearChat, onToggleSidebar }: HeaderProps) {
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/40 dark:border-white/5 px-4 md:px-6 bg-transparent z-50">
-      <div className="flex items-center gap-1/2">
+      <div className="flex items-center gap-0.5 rounded-2xl bg-secondary/60 border border-primary/10 shadow-sm px-3 py-1.5 backdrop-blur-sm transition-opacity hover:opacity-80">
         <span className="text-base font-semibold tracking-tight text-foreground dark:text-white">
           TripWeaver
         </span>

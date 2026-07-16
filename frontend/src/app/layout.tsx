@@ -26,7 +26,7 @@ export default function RootLayout({
         >
           {/* Subtle global background effects for dark mode */}
           <div className="fixed inset-0 z-[-1] pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-background to-background dark:from-indigo-900/20" />
-          
+
           <div className="fixed inset-0 z-0 pointer-events-none">
             <TravelBackground />
           </div>

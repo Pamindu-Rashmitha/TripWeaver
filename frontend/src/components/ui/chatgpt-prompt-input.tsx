@@ -124,7 +124,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
     const [value, setValue] = React.useState("");
     const [selectedTool, setSelectedTool] = React.useState<string | null>(null);
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
-    
+
     const [isRecording, setIsRecording] = React.useState(false);
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
@@ -169,7 +169,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
         setIsRecording(false);
         return;
       }
-      
+
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const mediaRecorder = new MediaRecorder(stream);
@@ -185,7 +185,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
           const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
           const formData = new FormData();
           formData.append("file", audioBlob, "recording.webm");
-          
+
           try {
             const token = await getToken();
             const res = await fetch(ENDPOINTS.transcribe, {
