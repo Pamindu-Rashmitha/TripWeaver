@@ -133,6 +133,12 @@
   html {
     @apply font-sans;
   }
+
+  @media (max-width: 768px) {
+    html {
+      font-size: 14.5px;
+    }
+  }
 }
 
 @layer utilities {
