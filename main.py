@@ -353,206 +353,71 @@ async def chat_stream(request: ChatRequest, user: UserInfo = Depends(get_require
                 # Tool results (hotels/flights/activities/transport/weather data)
                 elif kind == "on_tool_end":
                     tool_output = data.get("output", "")
-                    tool_name = name  # tool name from astream_events
-                    print(f"\n{'='*60}")
-                    print(f"DEBUG on_tool_end: tool_name='{tool_name}'")
-                    print(f"DEBUG output type: {type(tool_output).__name__}")
-                    print(f"DEBUG output repr (first 500): {repr(tool_output)[:500]}")
                     try:
                         parsed = None
-
-                        # Step 1: Check for artifact
                         if hasattr(tool_output, "artifact") and tool_output.artifact is not None:
                             if isinstance(tool_output.artifact, (list, dict)):
                                 parsed = tool_output.artifact
-                                print(f"DEBUG: Got data from artifact")
                         
-                        # Step 2: Extract content
                         if parsed is None:
+                            # Extract content if its a ToolMessage
                             tool_content = getattr(tool_output, "content", tool_output)
-                            print(f"DEBUG content type: {type(tool_content).__name__}")
-                            print(f"DEBUG content repr (first 500): {repr(tool_content)[:500]}")
 
-                            # Handle case where content is a list (e.g. MCP TextContent objects)
-                            if isinstance(tool_content, list) and tool_content:
-                                first_item = tool_content[0]
-                                print(f"DEBUG list[0] type: {type(first_item).__name__}")
-                                
-                                if hasattr(first_item, "text"):
-                                    # MCP TextContent objects with .text attribute
-                                    inner_text = first_item.text
-                                    print(f"DEBUG inner_text (first 300): {repr(inner_text)[:300]}")
-                                    try:
-                                        parsed = json.loads(inner_text)
-                                    except (json.JSONDecodeError, TypeError):
-                                        import ast
-                                        parsed = ast.literal_eval(inner_text)
-                                elif isinstance(first_item, dict) and "text" in first_item:
-                                    # Dict-style TextContent
-                                    inner_text = first_item["text"]
-                                    print(f"DEBUG dict inner_text (first 300): {repr(inner_text)[:300]}")
-                                    try:
-                                        parsed = json.loads(inner_text)
-                                    except (json.JSONDecodeError, TypeError):
-                                        import ast
-                                        parsed = ast.literal_eval(inner_text)
-                                elif isinstance(first_item, dict):
-                                    # Direct list of dicts (already structured data)
-                                    parsed = tool_content
-                                else:
-                                    # List of strings or other — try joining and parsing
-                                    combined = "\n".join(str(x) for x in tool_content)
-                                    try:
-                                        parsed = json.loads(combined)
-                                    except (json.JSONDecodeError, TypeError):
-                                        try:
-                                            import ast
-                                            parsed = ast.literal_eval(combined)
-                                        except (ValueError, SyntaxError):
-                                            pass
-
-                            # Try to parse tool output as JSON string
-                            elif isinstance(tool_content, str):
+                            # Try to parse tool output as JSON for structured data
+                            if isinstance(tool_content, str):
                                 try:
                                     parsed = json.loads(tool_content)
                                 except json.JSONDecodeError:
+                                    # Fallback for Python stringified lists
                                     import ast
-                                    try:
-                                        parsed = ast.literal_eval(tool_content)
-                                    except (ValueError, SyntaxError):
-                                        pass
-                            elif isinstance(tool_content, dict):
+                                    parsed = ast.literal_eval(tool_content)
+                            elif isinstance(tool_content, (list, dict)):
                                 parsed = tool_content
 
                         if not parsed:
-                            print(f"DEBUG: No parseable data from tool '{tool_name}', skipping")
                             continue
-
-                        print(f"DEBUG parsed type: {type(parsed).__name__}, len={len(parsed) if isinstance(parsed, list) else 'N/A'}")
 
                         # Detect data type by inspecting fields
                         items = parsed if isinstance(parsed, list) else [parsed]
-                        if not items or not isinstance(items[0], dict):
-                            print(f"DEBUG: items empty or first item not dict, skipping")
-                            continue
-
-                        # Unwrap MCP TextContent if present
-                        if "type" in items[0] and items[0].get("type") == "text" and "text" in items[0]:
-                            try:
-                                inner_text = items[0]["text"]
+                        if items and isinstance(items[0], dict):
+                            # Unwrap MCP TextContent if present
+                            if "type" in items[0] and items[0].get("type") == "text" and "text" in items[0]:
                                 try:
-                                    inner_parsed = json.loads(inner_text)
-                                except json.JSONDecodeError:
-                                    import ast
-                                    inner_parsed = ast.literal_eval(inner_text)
-                                items = inner_parsed if isinstance(inner_parsed, list) else [inner_parsed]
-                                print(f"DEBUG: Unwrapped TextContent, now {len(items)} items")
-                            except Exception as e:
-                                print(f"DEBUG: Failed to unwrap MCP output: {e}")
+                                    inner_text = items[0]["text"]
+                                    try:
+                                        inner_parsed = json.loads(inner_text)
+                                    except json.JSONDecodeError:
+                                        import ast
+                                        inner_parsed = ast.literal_eval(inner_text)
+                                    items = inner_parsed if isinstance(inner_parsed, list) else [inner_parsed]
+                                except Exception as e:
+                                    print(f"Failed to unwrap MCP output: {e}")
 
-                        if not items or not isinstance(items[0], dict):
-                            print(f"DEBUG: After unwrap, items empty or not dict, skipping")
-                            continue
-                            
-                        first = items[0]
-                        print(f"DEBUG first item keys: {list(first.keys())[:15]}")
+                            if not items or not isinstance(items[0], dict):
+                                continue
+                                
+                            first = items[0]
 
-                        # --- Detect type by field signatures ---
-                        detected_type = None
+                            if any(k in first for k in ("pricePerNight", "roomTypes", "checkIn")):
+                                yield _sse_event("hotels", {"hotels": items})
 
-                        if any(k in first for k in ("pricePerNight", "starRating")) and "name" in first:
-                            detected_type = "hotels"
-                        elif any(k in first for k in ("flightNumber", "airline")) and "departureTime" in first:
-                            detected_type = "flights"
-                        elif any(k in first for k in ("temperature", "feelsLike")) and "condition" in first:
-                            detected_type = "weather"
-                        elif "forecasts" in first:
-                            detected_type = "weather_forecast"
-                        elif "link" in first and "category" in first:
-                            detected_type = "activities"
-                        elif "link" in first and "transportType" in first:
-                            detected_type = "transport"
+                            elif any(k in first for k in ("flightNumber", "airline", "departureTime")):
+                                yield _sse_event("flights", {"flights": items})
 
-                        print(f"DEBUG detected_type='{detected_type}' for tool '{tool_name}'")
+                            elif any(k in first for k in ("temperature", "feelsLike")) and "condition" in first:
+                                yield _sse_event("weather", {"weather": items})
 
-                        if detected_type == "hotels":
-                            # Normalize hotel data for frontend
-                            normalized = []
-                            for h in items:
-                                if not isinstance(h, dict):
-                                    continue
-                                name_val = h.get("name", "")
-                                if not name_val:
-                                    print(f"DEBUG: Skipping hotel with no name: {h}")
-                                    continue
-                                normalized.append({
-                                    "_id": h.get("_id", h.get("id", "")),
-                                    "name": name_val,
-                                    "city": h.get("city", ""),
-                                    "pricePerNight": h.get("pricePerNight", 0),
-                                    "roomTypes": h.get("roomTypes", []),
-                                    "rating": h.get("rating", h.get("starRating", 0)),
-                                    "amenities": h.get("amenities", []),
-                                    "imageUrl": h.get("imageUrl", ""),
-                                    "available": h.get("available", h.get("availableRooms", 0) > 0),
-                                })
-                            if normalized:
-                                print(f"DEBUG: Emitting {len(normalized)} hotels SSE event")
-                                print(f"DEBUG: First hotel: {normalized[0]}")
-                                yield _sse_event("hotels", {"hotels": normalized})
+                            elif "forecasts" in first:
+                                yield _sse_event("weather", {"weather": items})
 
-                        elif detected_type == "flights":
-                            # Normalize flight data for frontend
-                            normalized = []
-                            for f in items:
-                                if not isinstance(f, dict):
-                                    continue
-                                # Handle nested origin/destination objects
-                                origin = f.get("origin", "")
-                                if isinstance(origin, dict):
-                                    origin = origin.get("airport", origin.get("city", ""))
-                                destination = f.get("destination", "")
-                                if isinstance(destination, dict):
-                                    destination = destination.get("airport", destination.get("city", ""))
+                            elif "link" in first and "category" in first:
+                                yield _sse_event("activities", {"activities": items})
 
-                                # Normalize duration
-                                duration = f.get("duration", "")
-                                if isinstance(duration, (int, float)):
-                                    hours = int(duration) // 60
-                                    mins = int(duration) % 60
-                                    duration = f"{hours}h {mins}m" if hours else f"{mins}m"
-
-                                normalized.append({
-                                    "_id": f.get("_id", f.get("id", "")),
-                                    "flightNumber": f.get("flightNumber", ""),
-                                    "airline": f.get("airline", ""),
-                                    "origin": origin,
-                                    "destination": destination,
-                                    "departureTime": f.get("departureTime", ""),
-                                    "arrivalTime": f.get("arrivalTime", ""),
-                                    "price": f.get("price", 0),
-                                    "seatsAvailable": f.get("seatsAvailable", f.get("availableSeats")),
-                                    "duration": str(duration),
-                                })
-                            if normalized:
-                                print(f"DEBUG: Emitting {len(normalized)} flights SSE event")
-                                yield _sse_event("flights", {"flights": normalized})
-
-                        elif detected_type in ("weather", "weather_forecast"):
-                            yield _sse_event("weather", {"weather": items})
-
-                        elif detected_type == "activities":
-                            yield _sse_event("activities", {"activities": items})
-
-                        elif detected_type == "transport":
-                            yield _sse_event("transport", {"transport": items})
-
-                        else:
-                            print(f"DEBUG: Unrecognized data type from tool '{tool_name}', skipping")
+                            elif "link" in first and "transportType" in first:
+                                yield _sse_event("transport", {"transport": items})
 
                     except Exception as e:
-                        print(f"Failed to parse tool output for '{tool_name}': {e}")
-                        traceback.print_exc()
+                        print(f"Failed to parse tool output: {e}")
 
             # Store in per-user conversation history
             if full_response:
