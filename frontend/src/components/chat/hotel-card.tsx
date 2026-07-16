@@ -57,9 +57,9 @@ export function HotelCard({ hotel, className, onBook }: HotelCardProps) {
 
       {/* Rating */}
       <div className="mt-2 flex items-center gap-1">
-        {renderStars(hotel.rating)}
+        {renderStars(hotel.rating ?? 0)}
         <span className="ml-1 text-xs text-muted-foreground dark:text-gray-500">
-          {hotel.rating}
+          {hotel.rating ?? 0}
         </span>
       </div>
 

@@ -353,6 +353,7 @@ async def chat_stream(request: ChatRequest, user: UserInfo = Depends(get_require
                 # Tool results (hotels/flights/activities/transport/weather data)
                 elif kind == "on_tool_end":
                     tool_output = data.get("output", "")
+                    tool_name = name  # tool name from astream_events
                     try:
                         parsed = None
                         if hasattr(tool_output, "artifact") and tool_output.artifact is not None:
@@ -363,15 +364,40 @@ async def chat_stream(request: ChatRequest, user: UserInfo = Depends(get_require
                             # Extract content if its a ToolMessage
                             tool_content = getattr(tool_output, "content", tool_output)
 
+                            # Handle case where content is a list (e.g. MCP TextContent objects)
+                            if isinstance(tool_content, list):
+                                # Could be list of TextContent-like dicts or raw dicts
+                                if tool_content and hasattr(tool_content[0], "text"):
+                                    # MCP TextContent objects with .text attribute
+                                    inner_text = tool_content[0].text
+                                    try:
+                                        parsed = json.loads(inner_text)
+                                    except (json.JSONDecodeError, TypeError):
+                                        import ast
+                                        parsed = ast.literal_eval(inner_text)
+                                elif tool_content and isinstance(tool_content[0], dict) and "text" in tool_content[0]:
+                                    # Dict-style TextContent
+                                    inner_text = tool_content[0]["text"]
+                                    try:
+                                        parsed = json.loads(inner_text)
+                                    except (json.JSONDecodeError, TypeError):
+                                        import ast
+                                        parsed = ast.literal_eval(inner_text)
+                                else:
+                                    parsed = tool_content
+
                             # Try to parse tool output as JSON for structured data
-                            if isinstance(tool_content, str):
+                            elif isinstance(tool_content, str):
                                 try:
                                     parsed = json.loads(tool_content)
                                 except json.JSONDecodeError:
                                     # Fallback for Python stringified lists
                                     import ast
-                                    parsed = ast.literal_eval(tool_content)
-                            elif isinstance(tool_content, (list, dict)):
+                                    try:
+                                        parsed = ast.literal_eval(tool_content)
+                                    except (ValueError, SyntaxError):
+                                        pass
+                            elif isinstance(tool_content, dict):
                                 parsed = tool_content
 
                         if not parsed:
@@ -398,26 +424,101 @@ async def chat_stream(request: ChatRequest, user: UserInfo = Depends(get_require
                                 
                             first = items[0]
 
-                            if any(k in first for k in ("pricePerNight", "roomTypes", "checkIn")):
-                                yield _sse_event("hotels", {"hotels": items})
+                            # --- Detect type by fields, then fall back to tool name ---
+                            detected_type = None
 
+                            if any(k in first for k in ("pricePerNight", "roomTypes", "checkIn", "starRating")):
+                                detected_type = "hotels"
                             elif any(k in first for k in ("flightNumber", "airline", "departureTime")):
-                                yield _sse_event("flights", {"flights": items})
-
+                                detected_type = "flights"
                             elif any(k in first for k in ("temperature", "feelsLike")) and "condition" in first:
-                                yield _sse_event("weather", {"weather": items})
-
+                                detected_type = "weather"
                             elif "forecasts" in first:
+                                detected_type = "weather_forecast"
+                            elif "link" in first and "category" in first:
+                                detected_type = "activities"
+                            elif "link" in first and "transportType" in first:
+                                detected_type = "transport"
+
+                            # Fallback: use tool name if field detection failed
+                            if not detected_type and tool_name:
+                                tn = tool_name.lower()
+                                if "hotel" in tn:
+                                    detected_type = "hotels"
+                                elif "flight" in tn:
+                                    detected_type = "flights"
+                                elif "weather" in tn:
+                                    detected_type = "weather"
+                                elif "activity" in tn or "activit" in tn:
+                                    detected_type = "activities"
+                                elif "transport" in tn:
+                                    detected_type = "transport"
+
+                            if detected_type == "hotels":
+                                # Normalize hotel data for frontend
+                                normalized = []
+                                for h in items:
+                                    normalized.append({
+                                        "_id": h.get("_id", h.get("id", "")),
+                                        "name": h.get("name", ""),
+                                        "city": h.get("city", ""),
+                                        "pricePerNight": h.get("pricePerNight", 0),
+                                        "roomTypes": h.get("roomTypes", []),
+                                        "rating": h.get("rating", h.get("starRating", 0)),
+                                        "amenities": h.get("amenities", []),
+                                        "imageUrl": h.get("imageUrl", ""),
+                                        "available": h.get("available", h.get("availableRooms", 0) > 0),
+                                    })
+                                yield _sse_event("hotels", {"hotels": normalized})
+
+                            elif detected_type == "flights":
+                                # Normalize flight data for frontend
+                                normalized = []
+                                for f in items:
+                                    # Handle nested origin/destination objects
+                                    origin = f.get("origin", "")
+                                    if isinstance(origin, dict):
+                                        origin = origin.get("airport", origin.get("city", ""))
+                                    destination = f.get("destination", "")
+                                    if isinstance(destination, dict):
+                                        destination = destination.get("airport", destination.get("city", ""))
+
+                                    # Normalize duration (could be int minutes or string)
+                                    duration = f.get("duration", "")
+                                    if isinstance(duration, (int, float)):
+                                        hours = int(duration) // 60
+                                        mins = int(duration) % 60
+                                        duration = f"{hours}h {mins}m" if hours else f"{mins}m"
+
+                                    normalized.append({
+                                        "_id": f.get("_id", f.get("id", "")),
+                                        "flightNumber": f.get("flightNumber", ""),
+                                        "airline": f.get("airline", ""),
+                                        "origin": origin,
+                                        "destination": destination,
+                                        "departureTime": f.get("departureTime", ""),
+                                        "arrivalTime": f.get("arrivalTime", ""),
+                                        "price": f.get("price", 0),
+                                        "seatsAvailable": f.get("seatsAvailable", f.get("availableSeats")),
+                                        "duration": str(duration),
+                                    })
+                                yield _sse_event("flights", {"flights": normalized})
+
+                            elif detected_type == "weather":
                                 yield _sse_event("weather", {"weather": items})
 
-                            elif "link" in first and "category" in first:
+                            elif detected_type == "weather_forecast":
+                                yield _sse_event("weather", {"weather": items})
+
+                            elif detected_type == "activities":
                                 yield _sse_event("activities", {"activities": items})
 
-                            elif "link" in first and "transportType" in first:
+                            elif detected_type == "transport":
                                 yield _sse_event("transport", {"transport": items})
 
                     except Exception as e:
-                        print(f"Failed to parse tool output: {e}")
+                        print(f"Failed to parse tool output for '{name}': {e}")
+                        traceback.print_exc()
 
             # Store in per-user conversation history
             if full_response:

@@ -12,8 +12,14 @@ interface FlightCardProps {
 }
 
 function formatTime(dateStr: string): string {
+  if (!dateStr) return "";
   try {
     const d = new Date(dateStr);
+    // Check if the Date is valid
+    if (isNaN(d.getTime())) {
+      // It's likely a plain time string like "12:15"
+      return dateStr;
+    }
     return d.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
@@ -25,8 +31,12 @@ function formatTime(dateStr: string): string {
 }
 
 function formatDate(dateStr: string): string {
+  if (!dateStr) return "";
   try {
     const d = new Date(dateStr);
+    if (isNaN(d.getTime())) {
+      return "";
+    }
     return d.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",

@@ -5,8 +5,8 @@ export interface Hotel {
   name: string;
   city: string;
   pricePerNight: number;
-  roomTypes: string[];
-  rating: number;
+  roomTypes?: string[];
+  rating?: number;
   amenities?: string[];
   imageUrl?: string;
   checkIn?: string;
