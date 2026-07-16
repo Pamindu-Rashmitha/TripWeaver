@@ -21,7 +21,7 @@ export default function RootLayout({
       <html lang="en" className="dark" suppressHydrationWarning>
         <body
           className={cn(
-            "min-h-screen font-sans text-foreground antialiased selection:bg-indigo-500/30"
+            "min-h-[100dvh] font-sans text-foreground antialiased selection:bg-indigo-500/30"
           )}
         >
           {/* Subtle global background effects for dark mode */}
@@ -31,7 +31,7 @@ export default function RootLayout({
             <TravelBackground />
           </div>
 
-          <div className="relative z-10 flex min-h-screen flex-col">
+          <div className="relative z-10 flex min-h-[100dvh] flex-col">
             <main className="flex-1">
               {children}
             </main>

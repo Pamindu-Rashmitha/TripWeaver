@@ -16,7 +16,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-transparent">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-transparent">
       <Header 
         onClearChat={handleClearChat} 
         onToggleSidebar={() => setIsSidebarOpen(true)}
