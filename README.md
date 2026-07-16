@@ -74,7 +74,11 @@ NEXT_PUBLIC_API_URL=your_deployed_url (If deploying)
    ```bash
    pip install -r requirements.txt
    ```
-4. Run the FastAPI server:
+4. Set up your Supabase database:
+   - Go to your Supabase project's SQL Editor.
+   - Copy the contents of `Schema.sql` and run it to create the necessary tables (`conversations` and `messages`).
+   
+5. Run the FastAPI server:
    ```bash
    uvicorn main:app --reload --port 8000
    ```
