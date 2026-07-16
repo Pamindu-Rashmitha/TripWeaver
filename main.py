@@ -380,6 +380,22 @@ async def chat_stream(request: ChatRequest, user: UserInfo = Depends(get_require
                         # Detect data type by inspecting fields
                         items = parsed if isinstance(parsed, list) else [parsed]
                         if items and isinstance(items[0], dict):
+                            # Unwrap MCP TextContent if present
+                            if "type" in items[0] and items[0].get("type") == "text" and "text" in items[0]:
+                                try:
+                                    inner_text = items[0]["text"]
+                                    try:
+                                        inner_parsed = json.loads(inner_text)
+                                    except json.JSONDecodeError:
+                                        import ast
+                                        inner_parsed = ast.literal_eval(inner_text)
+                                    items = inner_parsed if isinstance(inner_parsed, list) else [inner_parsed]
+                                except Exception as e:
+                                    print(f"Failed to unwrap MCP output: {e}")
+
+                            if not items or not isinstance(items[0], dict):
+                                continue
+                                
                             first = items[0]
 
                             if any(k in first for k in ("pricePerNight", "roomTypes", "checkIn")):
