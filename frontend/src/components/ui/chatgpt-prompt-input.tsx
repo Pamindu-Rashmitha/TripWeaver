@@ -115,11 +115,13 @@ const toolsList = [
 export interface PromptBoxProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   onSendMessage?: (message: string) => void;
+  isLoading?: boolean;
+  onStop?: () => void;
 }
 
 //  The TripWeaver PromptBox Component 
 export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
-  ({ className, onSendMessage, ...props }, ref) => {
+  ({ className, onSendMessage, isLoading, onStop, ...props }, ref) => {
     const internalTextareaRef = React.useRef<HTMLTextAreaElement>(null);
     const [value, setValue] = React.useState("");
     const [selectedTool, setSelectedTool] = React.useState<string | null>(null);
@@ -345,21 +347,32 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                   </TooltipContent>
                 </Tooltip>
 
-                {/* Send button */}
+                {/* Send / Stop button */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={handleSend}
-                      disabled={!hasValue}
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none bg-black text-white hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/80 disabled:bg-black/40 dark:disabled:bg-[#515151]"
-                    >
-                      <ArrowUp className="h-4 w-4" />
-                      <span className="sr-only">Send message</span>
-                    </button>
+                    {isLoading ? (
+                      <button
+                        type="button"
+                        onClick={onStop}
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring bg-black text-white hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/80"
+                      >
+                        <Square className="h-3.5 w-3.5 fill-current" />
+                        <span className="sr-only">Stop generating</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleSend}
+                        disabled={!hasValue}
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none bg-black text-white hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/80 disabled:bg-black/40 dark:disabled:bg-[#515151]"
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                        <span className="sr-only">Send message</span>
+                      </button>
+                    )}
                   </TooltipTrigger>
                   <TooltipContent side="top" showArrow={true}>
-                    <p>Send</p>
+                    <p>{isLoading ? "Stop generating" : "Send"}</p>
                   </TooltipContent>
                 </Tooltip>
               </div>

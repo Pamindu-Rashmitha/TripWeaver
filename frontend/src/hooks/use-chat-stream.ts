@@ -181,6 +181,7 @@ export function useChatStream(initialConversationId?: string) {
 
                 case "token":
                   accumulatedContent += data.token;
+                  setActivity(null);
                   ensureAssistantMessage();
                   setMessages((prev) =>
                     prev.map((msg) =>
@@ -299,7 +300,16 @@ export function useChatStream(initialConversationId?: string) {
         );
       }
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") return;
+      if (err instanceof Error && err.name === "AbortError") {
+        if (assistantAdded) {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantId ? { ...msg, isStreaming: false } : msg
+            )
+          );
+        }
+        return;
+      }
 
       const errorMessage =
         err instanceof Error
@@ -349,6 +359,15 @@ export function useChatStream(initialConversationId?: string) {
     setActivity(null);
   }, []);
 
+  const stopGeneration = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    setIsLoading(false);
+    setActivity(null);
+  }, []);
+
   return {
     messages,
     setMessages,
@@ -361,6 +380,7 @@ export function useChatStream(initialConversationId?: string) {
     retry,
     clearMessages,
     setError,
+    stopGeneration,
   };
 }
 

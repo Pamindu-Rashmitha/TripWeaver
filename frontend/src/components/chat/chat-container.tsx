@@ -29,6 +29,7 @@ export function ChatContainer({ activeConversationId, onConversationChange }: Ch
     sendMessage: rawSendMessage,
     retry: rawRetry,
     setError,
+    stopGeneration,
   } = useChatStream(activeConversationId || undefined);
 
   const prevConversationIdRef = React.useRef<string | null>(conversationId);
@@ -132,6 +133,8 @@ export function ChatContainer({ activeConversationId, onConversationChange }: Ch
           <PromptBox
             onSendMessage={sendMessage}
             disabled={isLoading}
+            isLoading={isLoading}
+            onStop={stopGeneration}
           />
 
           {/* Footer */}
