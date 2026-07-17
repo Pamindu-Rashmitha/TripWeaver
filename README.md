@@ -145,9 +145,16 @@ Welcome to TripWeaver! Here is a quick guide to get you started:
 1. **Authentication:** 
    Upon visiting the app, you will be prompted to log in or create an account securely via Clerk.
 
+   <img width="1919" height="867" alt="image" src="https://github.com/user-attachments/assets/2bbd06af-7f9f-4fee-bcd3-87987662e936" />
+
+
 2. **Starting a Chat:**
    Once logged in, you'll see the main chat interface. Simply type your travel prompt.
    *Example: "Plan a 3-day trip to Paris for next weekend. I want to visit museums and need hotel recommendations."*
+
+   <img width="1919" height="859" alt="image" src="https://github.com/user-attachments/assets/3adba326-c78a-484b-adcb-604aad973a7e" />
+
+
 
 3. **Interactive Planning:**
    - The AI agent will dynamically invoke the appropriate MCP servers (weather, flights, hotels, activities) based on your request.
@@ -156,3 +163,12 @@ Welcome to TripWeaver! Here is a quick guide to get you started:
 
 4. **History:**
    Your previous travel planning sessions are saved automatically, allowing you to pick up where you left off.
+
+   <img width="1919" height="866" alt="image" src="https://github.com/user-attachments/assets/fdd52c06-5a4c-44c9-9c5d-db6db0ffdea9" />
+
+## Note !!
+
+* Since Deployed in the free instance on Render the server will spin down with inactivity, which can delay requests by 50 seconds or more.
+
+
+
