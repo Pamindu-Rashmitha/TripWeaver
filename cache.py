@@ -18,7 +18,8 @@ class RedisCache:
         # In-memory fallback stores
         self._history_fallback: dict[str, list] = {}
         self._summary_fallback: dict[str, str] = {}
-        self._api_fallback: dict[str, tuple[float, Any]] = {}  
+        self._api_fallback: dict[str, tuple[float, Any]] = {}
+        self._ratelimit_fallback: dict[str, list[float]] = {}
 
     async def connect(self):
         logger.info(f"Connecting to Redis at {self.redis_url}...")
@@ -141,6 +142,57 @@ class RedisCache:
                 logger.info(f"Invalidated {len(keys)} keys matching pattern: {pattern}")
         except Exception as e:
             logger.warning(f"Redis invalidate_pattern error for {pattern}: {e}")
+
+    async def check_rate_limit(
+        self, identifier: str, max_requests: int, window_seconds: int
+    ) -> tuple[bool, int, int]:
+        """
+        Sliding window rate limiter using Redis ZSET or in-memory fallback.
+        Returns: (allowed: bool, remaining: int, reset_seconds: int)
+        """
+        now = time.time()
+        key = f"tw:ratelimit:{identifier}"
+        cutoff = now - window_seconds
+
+        if self.use_fallback or not self.redis:
+            timestamps = self._ratelimit_fallback.get(identifier, [])
+            timestamps = [t for t in timestamps if t > cutoff]
+            if len(timestamps) >= max_requests:
+                oldest = timestamps[0]
+                reset_in = int(oldest + window_seconds - now) + 1
+                self._ratelimit_fallback[identifier] = timestamps
+                return False, 0, max(reset_in, 1)
+
+            timestamps.append(now)
+            self._ratelimit_fallback[identifier] = timestamps
+            remaining = max_requests - len(timestamps)
+            return True, remaining, window_seconds
+
+        try:
+            member_id = f"{now}:{time.time_ns()}"
+            pipe = self.redis.pipeline()
+            pipe.zremrangebyscore(key, 0, cutoff)
+            pipe.zcard(key)
+            pipe.zadd(key, {member_id: now})
+            pipe.expire(key, window_seconds)
+            results = await pipe.execute()
+
+            current_count = results[1]
+            if current_count >= max_requests:
+                await self.redis.zrem(key, member_id)
+                oldest_entry = await self.redis.zrange(key, 0, 0, withscores=True)
+                reset_in = window_seconds
+                if oldest_entry:
+                    _, oldest_score = oldest_entry[0]
+                    reset_in = int(oldest_score + window_seconds - now) + 1
+                return False, 0, max(reset_in, 1)
+
+            remaining = max_requests - (current_count + 1)
+            return True, remaining, window_seconds
+
+        except Exception as e:
+            logger.warning(f"Redis check_rate_limit error for {key}: {e}. Falling back to allowed.")
+            return True, max_requests, window_seconds
 
 # Global instance
 redis_cache = RedisCache()

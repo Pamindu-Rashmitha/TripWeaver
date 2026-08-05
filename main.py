@@ -3,7 +3,7 @@ import contextlib
 import traceback
 import warnings
 from typing import Optional
-from fastapi import FastAPI, Depends, UploadFile, File
+from fastapi import FastAPI, Depends, UploadFile, File, Request, Response, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import asyncio
@@ -15,7 +15,7 @@ from entity import ChatRequest, ChatResponse
 from agents.graph import graph
 from agents.mcp_client import mcp_manager
 from agents.llm import llm
-from auth import get_required_user, UserInfo
+from auth import get_required_user, verify_clerk_token, UserInfo
 
 groq_client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 
@@ -23,6 +23,52 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
 from cache import redis_cache
 from database import db
+
+
+class RateLimiter:
+    """
+    FastAPI dependency for rate limiting endpoints using Redis sliding window.
+    Supports authenticated users (by user_id) and unauthenticated clients (by IP).
+    """
+    def __init__(self, requests_per_window: int = 20, window_seconds: int = 60, key_prefix: str = "api", require_auth: bool = True):
+        self.requests_per_window = requests_per_window
+        self.window_seconds = window_seconds
+        self.key_prefix = key_prefix
+        self.require_auth = require_auth
+
+    async def __call__(self, request: Request, response: Response) -> Optional[UserInfo]:
+        user: Optional[UserInfo] = None
+        if self.require_auth:
+            user = await get_required_user(request)
+            identifier = f"{self.key_prefix}:{user.user_id}"
+        else:
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+                user = await verify_clerk_token(token)
+            
+            client_ip = request.client.host if request.client else "127.0.0.1"
+            identifier = f"{self.key_prefix}:{user.user_id if user else client_ip}"
+
+        allowed, remaining, reset_seconds = await redis_cache.check_rate_limit(
+            identifier=identifier,
+            max_requests=self.requests_per_window,
+            window_seconds=self.window_seconds
+        )
+
+        response.headers["X-RateLimit-Limit"] = str(self.requests_per_window)
+        response.headers["X-RateLimit-Remaining"] = str(max(remaining, 0))
+        response.headers["X-RateLimit-Reset"] = str(reset_seconds)
+
+        if not allowed:
+            response.headers["Retry-After"] = str(reset_seconds)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded. Try again in {reset_seconds} seconds.",
+                headers={"Retry-After": str(reset_seconds)}
+            )
+        return user
+
 
 def _get_user_key(user: UserInfo) -> str:
     """Return a stable key for per-user history."""
@@ -131,7 +177,7 @@ async def hello():
 
 
 @app.get("/api/conversations")
-async def list_conversations(user: UserInfo = Depends(get_required_user)):
+async def list_conversations(user: UserInfo = Depends(RateLimiter(60, 60, "conversations", require_auth=True))):
     if not db.is_enabled():
         return []
     
@@ -140,7 +186,7 @@ async def list_conversations(user: UserInfo = Depends(get_required_user)):
     return conversations
 
 @app.get("/api/conversations/{conversation_id}/messages")
-async def get_conversation_messages(conversation_id: str, user: UserInfo = Depends(get_required_user)):
+async def get_conversation_messages(conversation_id: str, user: UserInfo = Depends(RateLimiter(60, 60, "conversations", require_auth=True))):
     if not db.is_enabled():
         return []
     
@@ -149,7 +195,7 @@ async def get_conversation_messages(conversation_id: str, user: UserInfo = Depen
 
 
 @app.delete("/api/conversations/{conversation_id}")
-async def delete_conversation(conversation_id: str, user: UserInfo = Depends(get_required_user)):
+async def delete_conversation(conversation_id: str, user: UserInfo = Depends(RateLimiter(60, 60, "conversations", require_auth=True))):
     if not db.is_enabled():
         from fastapi import HTTPException
         raise HTTPException(status_code=503, detail="Database connection is disabled")
@@ -169,7 +215,7 @@ async def delete_conversation(conversation_id: str, user: UserInfo = Depends(get
 
 
 @app.get("/hotels")
-async def list_hotels():
+async def list_hotels(_user: Optional[UserInfo] = Depends(RateLimiter(60, 60, "hotels", require_auth=False))):
     cache_key = "tw:api:hotels:list"
     cached = await redis_cache.get_cached_response(cache_key)
     if cached is not None:
@@ -183,7 +229,7 @@ async def list_hotels():
 
 
 @app.get("/flights")
-async def list_flights():
+async def list_flights(_user: Optional[UserInfo] = Depends(RateLimiter(60, 60, "flights", require_auth=False))):
     cache_key = "tw:api:flights:list"
     cached = await redis_cache.get_cached_response(cache_key)
     if cached is not None:
@@ -197,7 +243,7 @@ async def list_flights():
 
 
 @app.get("/weather/{city}")
-async def get_weather(city: str):
+async def get_weather(city: str, _user: Optional[UserInfo] = Depends(RateLimiter(60, 60, "weather", require_auth=False))):
     cache_key = f"tw:api:weather:{city}"
     cached = await redis_cache.get_cached_response(cache_key)
     if cached is not None:
@@ -211,7 +257,7 @@ async def get_weather(city: str):
 
 
 @app.post("/api/transcribe")
-async def transcribe_audio(file: UploadFile = File(...), user: UserInfo = Depends(get_required_user)):
+async def transcribe_audio(file: UploadFile = File(...), user: UserInfo = Depends(RateLimiter(10, 60, "transcribe", require_auth=True))):
     try:
         import tempfile
         ext = os.path.splitext(file.filename)[1] if file.filename else ".webm"
@@ -235,7 +281,7 @@ async def transcribe_audio(file: UploadFile = File(...), user: UserInfo = Depend
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, user: UserInfo = Depends(get_required_user)):
+async def chat(request: ChatRequest, user: UserInfo = Depends(RateLimiter(20, 60, "chat", require_auth=True))):
     user_key = _get_user_key(user)
     formatted_messages = await _build_messages(request.message, user_key)
 
@@ -272,7 +318,7 @@ async def chat(request: ChatRequest, user: UserInfo = Depends(get_required_user)
 
 
 @app.post("/chat/stream")
-async def chat_stream(request: ChatRequest, user: UserInfo = Depends(get_required_user)):
+async def chat_stream(request: ChatRequest, user: UserInfo = Depends(RateLimiter(20, 60, "chat_stream", require_auth=True))):
     """
     SSE streaming endpoint.
     Emits events: activity, token, hotels, flights, activities, transport, weather, error, done.
