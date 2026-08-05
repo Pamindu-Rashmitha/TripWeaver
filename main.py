@@ -36,7 +36,7 @@ class RateLimiter:
         self.key_prefix = key_prefix
         self.require_auth = require_auth
 
-    async def __call__(self, request: Request, response: Response) -> Optional[UserInfo]:
+    async def __call__(self, request: Request, response: Response = None) -> Optional[UserInfo]:
         user: Optional[UserInfo] = None
         if self.require_auth:
             user = await get_required_user(request)
@@ -47,26 +47,35 @@ class RateLimiter:
                 token = auth_header[7:]
                 user = await verify_clerk_token(token)
             
-            client_ip = request.client.host if request.client else "127.0.0.1"
+            client_ip = request.client.host if (request.client and request.client.host) else "127.0.0.1"
             identifier = f"{self.key_prefix}:{user.user_id if user else client_ip}"
 
-        allowed, remaining, reset_seconds = await redis_cache.check_rate_limit(
-            identifier=identifier,
-            max_requests=self.requests_per_window,
-            window_seconds=self.window_seconds
-        )
-
-        response.headers["X-RateLimit-Limit"] = str(self.requests_per_window)
-        response.headers["X-RateLimit-Remaining"] = str(max(remaining, 0))
-        response.headers["X-RateLimit-Reset"] = str(reset_seconds)
-
-        if not allowed:
-            response.headers["Retry-After"] = str(reset_seconds)
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Rate limit exceeded. Try again in {reset_seconds} seconds.",
-                headers={"Retry-After": str(reset_seconds)}
+        try:
+            allowed, remaining, reset_seconds = await redis_cache.check_rate_limit(
+                identifier=identifier,
+                max_requests=self.requests_per_window,
+                window_seconds=self.window_seconds
             )
+
+            if response is not None:
+                response.headers["X-RateLimit-Limit"] = str(self.requests_per_window)
+                response.headers["X-RateLimit-Remaining"] = str(max(remaining, 0))
+                response.headers["X-RateLimit-Reset"] = str(reset_seconds)
+
+            if not allowed:
+                if response is not None:
+                    response.headers["Retry-After"] = str(reset_seconds)
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"Rate limit exceeded. Try again in {reset_seconds} seconds.",
+                    headers={"Retry-After": str(reset_seconds)}
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            import logging
+            logging.getLogger("tripweaver.ratelimit").warning(f"Rate limit check error: {e}")
+
         return user
 
 

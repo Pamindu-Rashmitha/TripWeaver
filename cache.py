@@ -177,14 +177,14 @@ class RedisCache:
             pipe.expire(key, window_seconds)
             results = await pipe.execute()
 
-            current_count = results[1]
+            current_count = int(results[1]) if results and len(results) > 1 and results[1] is not None else 0
             if current_count >= max_requests:
                 await self.redis.zrem(key, member_id)
                 oldest_entry = await self.redis.zrange(key, 0, 0, withscores=True)
                 reset_in = window_seconds
                 if oldest_entry:
                     _, oldest_score = oldest_entry[0]
-                    reset_in = int(oldest_score + window_seconds - now) + 1
+                    reset_in = int(float(oldest_score) + window_seconds - now) + 1
                 return False, 0, max(reset_in, 1)
 
             remaining = max_requests - (current_count + 1)

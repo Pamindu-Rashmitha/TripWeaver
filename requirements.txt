@@ -8,8 +8,8 @@ langchain-openai
 langchain-core
 langgraph
 requests
-mcp
-langchain-mcp-adapters
+mcp>=1.2.0,<2.0.0
+langchain-mcp-adapters>=0.2.1,<0.3.0
 tavily-python
 PyJWT[crypto]>=2.8.0
 cryptography>=41.0.0
